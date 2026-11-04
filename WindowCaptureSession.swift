@@ -39,36 +39,38 @@ final class WindowCaptureSession {
     let layer: CALayer = {
         let layer = CALayer()
         layer.contentsGravity = .resizeAspect
-        layer.backgroundColor = NSColor.black.cgColor
-        layer.isOpaque = true
+        layer.backgroundColor = NSColor.clear.cgColor
+        layer.isOpaque = false
         return layer
     }()
 
+    /// Frames are only ever shown this tall, so there is no point streaming more pixels.
+    @ObservationIgnored private let preferredHeight: CGFloat
     @ObservationIgnored private var stream: SCStream?
     @ObservationIgnored private var forwarder: FrameForwarder?
     @ObservationIgnored private var capturedFrame: CGRect = .zero
     @ObservationIgnored private let outputQueue = DispatchQueue(
         label: "co.lesha.eve-operator.capture", qos: .userInitiated)
 
-    // MARK: - Lifecycle
-
-    func start(windowID id: CGWindowID) async {
-        guard windowID != id else { return }
-        await restart(windowID: id)
+    init(preferredHeight: CGFloat = OverlayMetrics.frameHeight) {
+        self.preferredHeight = preferredHeight
     }
 
-    func restart(windowID id: CGWindowID) async {
+    // MARK: - Lifecycle
+
+    /// Starts capturing `window`, unless it is already the window being captured.
+    func start(window: SCWindow) async {
+        guard windowID != window.windowID else { return }
+        await restart(window: window)
+    }
+
+    func restart(window: SCWindow) async {
         await stop()
-        windowID = id
+        windowID = window.windowID
         state = .starting
 
         do {
-            guard let window = try await WindowDiscovery.shareableWindow(id: id) else {
-                state = .failed("That window is no longer available.")
-                return
-            }
-
-            let configuration = Self.configuration(for: window)
+            let configuration = self.configuration(forSize: window.frame.size)
             let filter = SCContentFilter(desktopIndependentWindow: window)
 
             let forwarder = FrameForwarder(
@@ -94,6 +96,16 @@ final class WindowCaptureSession {
         }
     }
 
+    /// Convenience for callers that only hold a window id.
+    func start(windowID id: CGWindowID) async {
+        guard windowID != id else { return }
+        guard let window = try? await WindowDiscovery.shareableWindow(id: id) else {
+            state = .failed("That window is no longer available.")
+            return
+        }
+        await restart(window: window)
+    }
+
     func stop() async {
         if let stream {
             try? await stream.stopCapture()
@@ -115,7 +127,7 @@ final class WindowCaptureSession {
         guard abs(old.width - new.width) > 1 || abs(old.height - new.height) > 1 else { return }
 
         capturedFrame = window.frame
-        let configuration = Self.configuration(forSize: new)
+        let configuration = self.configuration(forSize: new)
         try? await stream.updateConfiguration(configuration)
     }
 
@@ -136,18 +148,20 @@ final class WindowCaptureSession {
 
     // MARK: - Helpers
 
-    private static func configuration(for window: SCWindow) -> SCStreamConfiguration {
-        configuration(forSize: window.frame.size)
-    }
+    /// Streams at the on-screen thumbnail size rather than the window's native size, so a
+    /// dozen simultaneous clients stay cheap.
+    private func configuration(forSize size: CGSize) -> SCStreamConfiguration {
+        let backingScale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
+        let aspectRatio =
+            size.height > 0 ? size.width / size.height : OverlayMetrics.fallbackAspectRatio
+        let height = min(size.height, preferredHeight) * backingScale
 
-    private static func configuration(forSize size: CGSize) -> SCStreamConfiguration {
-        let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
         let configuration = SCStreamConfiguration()
-        configuration.width = max(2, Int((size.width * scale).rounded()))
-        configuration.height = max(2, Int((size.height * scale).rounded()))
+        configuration.width = max(2, Int((height * aspectRatio).rounded()))
+        configuration.height = max(2, Int(height.rounded()))
         configuration.pixelFormat = kCVPixelFormatType_32BGRA
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
-        configuration.queueDepth = 5
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 20)
+        configuration.queueDepth = 3
         configuration.showsCursor = true
         configuration.scalesToFit = true
         configuration.capturesAudio = false

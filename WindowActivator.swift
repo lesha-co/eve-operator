@@ -30,7 +30,12 @@ enum WindowActivator {
         }
     }
 
-    static func bringToFront(_ window: EVEWindow) throws {
+    /// Raises `window` and activates its client.
+    ///
+    /// - Parameter exactWindowRequired: when the client owns a single window, activating the
+    ///   process already puts the right window in front, so a failed Accessibility lookup is
+    ///   not worth surfacing. Pass `true` only when the distinction matters.
+    static func bringToFront(_ window: EVEWindow, exactWindowRequired: Bool = false) throws {
         guard let app = NSRunningApplication(processIdentifier: window.processIdentifier) else {
             throw ActivationError.processGone
         }
@@ -39,9 +44,10 @@ enum WindowActivator {
         }
 
         guard let element = accessibilityWindow(matching: window) else {
-            // Best effort: at least pull the client's process forward.
+            // Best effort: pulling the client's process forward raises its windows anyway.
             app.activate()
-            throw ActivationError.windowNotFound
+            if exactWindowRequired { throw ActivationError.windowNotFound }
+            return
         }
 
         AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
@@ -54,32 +60,54 @@ enum WindowActivator {
 
     // MARK: - Accessibility lookup
 
-    /// `CGWindowID` has no public Accessibility counterpart, so match on title first and
-    /// fall back to geometry.
+    /// Resolves the `AXUIElement` for a `CGWindowID`, trying the exact id bridge first and
+    /// falling back to title, then geometry.
     static func accessibilityWindow(matching window: EVEWindow) -> AXUIElement? {
         let application = AXUIElementCreateApplication(window.processIdentifier)
+        let candidates = windowElements(of: application)
+        guard !candidates.isEmpty else { return nil }
 
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
-                == .success,
-            let windows = value as? [AXUIElement], !windows.isEmpty
-        else { return nil }
-
-        if windows.count == 1 { return windows[0] }
-
+        if let match = candidates.first(where: { windowID(of: $0) == window.id }) {
+            return match
+        }
+        if candidates.count == 1 {
+            return candidates[0]
+        }
         if !window.title.isEmpty,
-            let match = windows.first(where: { string(of: $0, kAXTitleAttribute) == window.title })
+            let match = candidates.first(where: {
+                string(of: $0, kAXTitleAttribute) == window.title
+            })
         {
             return match
         }
 
-        return windows.first { element in
+        return candidates.first { element in
             guard let frame = frame(of: element) else { return false }
             return abs(frame.origin.x - window.frame.origin.x) < 2
                 && abs(frame.origin.y - window.frame.origin.y) < 2
                 && abs(frame.width - window.frame.width) < 2
                 && abs(frame.height - window.frame.height) < 2
+        }
+    }
+
+    private static func windowElements(of application: AXUIElement) -> [AXUIElement] {
+        var value: CFTypeRef?
+        if AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value)
+            == .success,
+            let windows = value as? [AXUIElement], !windows.isEmpty
+        {
+            return windows
+        }
+
+        // Not every app publishes kAXWindows; these two are usually still there.
+        return [kAXMainWindowAttribute, kAXFocusedWindowAttribute].compactMap { attribute in
+            var value: CFTypeRef?
+            guard
+                AXUIElementCopyAttributeValue(application, attribute as CFString, &value)
+                    == .success,
+                let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+            else { return nil }
+            return (value as! AXUIElement)
         }
     }
 
@@ -110,5 +138,27 @@ enum WindowActivator {
             let raw, CFGetTypeID(raw) == AXValueGetTypeID()
         else { return nil }
         return (raw as! AXValue)
+    }
+
+    // MARK: - CGWindowID bridge
+
+    private typealias GetWindowFunction =
+        @convention(c) (
+            AXUIElement, UnsafeMutablePointer<CGWindowID>
+        ) -> AXError
+
+    /// `_AXUIElementGetWindow` is the only way to map an `AXUIElement` onto a `CGWindowID`.
+    /// It is private SPI, so it is resolved at runtime and simply skipped when absent.
+    private static let getWindowID: GetWindowFunction? = {
+        let rtldDefault = UnsafeMutableRawPointer(bitPattern: -2)
+        guard let symbol = dlsym(rtldDefault, "_AXUIElementGetWindow") else { return nil }
+        return unsafeBitCast(symbol, to: GetWindowFunction.self)
+    }()
+
+    private static func windowID(of element: AXUIElement) -> CGWindowID? {
+        guard let getWindowID else { return nil }
+        var identifier: CGWindowID = 0
+        guard getWindowID(element, &identifier) == .success, identifier != 0 else { return nil }
+        return identifier
     }
 }

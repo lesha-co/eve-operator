@@ -9,10 +9,31 @@ import SwiftUI
 
 @main
 struct eve_operatorApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        // The app's only surface is the floating overlay panel, which AppKit owns.
+        Settings {
+            EmptyView()
         }
-        .defaultSize(width: 1100, height: 720)
     }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+
+    private let model = OperatorModel()
+    private var panel: OverlayPanel?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let panel = OverlayPanel(content: OverlayStripView(model: model))
+        panel.show()
+        self.panel = panel
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        panel?.show()
+        return true
+    }
+
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 }

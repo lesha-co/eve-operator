@@ -45,16 +45,14 @@ enum WindowDiscovery {
 
     /// UI-facing snapshot of the current EVE windows.
     static func currentWindows() async throws -> [EVEWindow] {
+        snapshot(of: try await shareableWindows())
+    }
+
+    /// Maps already-fetched `SCWindow`s, so callers that also need the live objects (to open a
+    /// capture stream) don't have to pay for a second `SCShareableContent` round-trip.
+    static func snapshot(of windows: [SCWindow]) -> [EVEWindow] {
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        return try await shareableWindows().map { window in
-            let pid = window.owningApplication?.processID ?? -1
-            return EVEWindow(
-                id: window.windowID,
-                title: window.title ?? "",
-                processIdentifier: pid,
-                frame: window.frame,
-                isActive: pid == frontmost)
-        }
+        return windows.map { EVEWindow($0, frontmostProcess: frontmost) }
     }
 
     /// Re-resolves a window id to a live `SCWindow`, which is what a capture filter needs.
