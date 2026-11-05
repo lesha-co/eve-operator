@@ -45,7 +45,12 @@ struct OverlayStripView: View {
         // Keeps a real AppKit view under every pixel of the panel, including the padding.
         // Bare SwiftUI hosting view counts as window background, which AppKit handles itself
         // instead of delivering the event. It also puts the context menu on the whole strip.
-        .background { MouseTracker(menuItems: menuItems) }
+        .background {
+            MouseTracker(menuItems: menuItems)
+            WindowConfigurator { window in
+                (window as? OverlayPanel)?.setAlwaysOnTop(settings.previewsAlwaysOnTop)
+            }
+        }
         .task { await model.monitor() }
     }
 
@@ -93,15 +98,10 @@ struct OverlayStripView: View {
         return notices
     }
 
-    /// "Rescan" is the 2-second poll run on demand: it re-enumerates EVE's windows, then starts
-    /// a capture stream for any that appeared and tears down the streams of any that vanished.
-    /// Useful when a thumbnail has gone stale, redundant otherwise.
     private var menuItems: [MouseTracker.MenuEntry] {
         [
-            .init(title: "Rescan EVE Windows", action: { Task { await model.refresh() } }),
             .init(title: "Settings…", action: { SettingsWindow.open() }),
-            .separator,
-            .init(title: "Quit eve-operator", action: { NSApp.terminate(nil) }),
+            .init(title: "Quit", action: { NSApp.terminate(nil) }),
         ]
     }
 }
@@ -131,7 +131,7 @@ private struct ClientFrameView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: settings.labelPlacement) {
             CaptureLayerView(
                 contentLayer: session.layer,
                 opacity: opacity,
@@ -146,7 +146,7 @@ private struct ClientFrameView: View {
 
             Text(window.characterName ?? window.displayName)
                 .font(.system(size: OverlayMetrics.labelFontSize, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(settings.labelColor)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)

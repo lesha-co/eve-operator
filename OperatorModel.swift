@@ -24,7 +24,14 @@ final class OperatorModel {
 
     private let settings = OverlaySettings.shared
 
-    private static let refreshInterval = Duration.seconds(2)
+    private static let refreshInterval = Duration.milliseconds(200)
+
+    /// Floor on how often a window the WindowServer lists but ScreenCaptureKit does not may be
+    /// chased, so an unresolvable window cannot reintroduce per-poll `SCShareableContent`
+    /// calls — see `WindowDiscovery.currentWindows()`.
+    private static let resolveRetryInterval = Duration.seconds(2)
+
+    @ObservationIgnored private var lastResolveAttempt: ContinuousClock.Instant?
 
     // MARK: - Discovery
 
@@ -54,36 +61,52 @@ final class OperatorModel {
             return
         }
 
-        do {
-            let shareable = try await WindowDiscovery.shareableWindows()
-            windows = WindowDiscovery.snapshot(of: shareable)
-            await syncSessions(with: shareable)
-        } catch {
-            windows = []
-            await stopAllSessions()
-        }
+        windows = WindowDiscovery.currentWindows()
+        await syncSessions(with: windows)
     }
 
     // MARK: - Capture
 
-    private func syncSessions(with shareable: [SCWindow]) async {
-        let live = Set(shareable.map(\.windowID))
+    private func syncSessions(with windows: [EVEWindow]) async {
+        let live = Set(windows.map(\.id))
 
         for (id, session) in sessions where !live.contains(id) {
             sessions[id] = nil
             await session.stop()
         }
 
-        for window in shareable {
-            if let session = sessions[window.windowID] {
-                await session.updatePreferredHeight(settings.frameHeight)
-                await session.adapt(to: EVEWindow(window, frontmostProcess: nil))
-            } else {
-                let session = WindowCaptureSession(preferredHeight: settings.frameHeight)
-                sessions[window.windowID] = session
-                await session.start(window: window)
-            }
+        for window in windows {
+            guard let session = sessions[window.id] else { continue }
+            await session.updatePreferredHeight(settings.frameHeight)
+            await session.adapt(to: window)
         }
+
+        let unstarted = windows.filter { sessions[$0.id] == nil }
+        if !unstarted.isEmpty { await startSessions(for: unstarted) }
+    }
+
+    /// Opening a stream is the one thing that needs a live `SCWindow`, and resolving one costs
+    /// a full `SCShareableContent` round-trip, so this runs only when a window has actually
+    /// appeared — never on every poll.
+    private func startSessions(for windows: [EVEWindow]) async {
+        if let last = lastResolveAttempt, last.duration(to: .now) < Self.resolveRetryInterval {
+            return
+        }
+
+        let wanted = Set(windows.map(\.id))
+        let shareable = (try? await WindowDiscovery.shareableWindows()) ?? []
+
+        for window in shareable
+        where wanted.contains(window.windowID) && sessions[window.windowID] == nil {
+            let session = WindowCaptureSession(preferredHeight: settings.frameHeight)
+            sessions[window.windowID] = session
+            await session.start(window: window)
+        }
+
+        // A window ScreenCaptureKit has not offered up yet is usually a client still coming
+        // up, which resolves on a later pass — but it can also never resolve, so back off
+        // instead of asking again at the polling rate.
+        lastResolveAttempt = wanted.allSatisfy { sessions[$0] != nil } ? nil : .now
     }
 
     private func stopAllSessions() async {

@@ -7,11 +7,15 @@
 //
 
 import AppKit
+import Combine
 import SwiftUI
 
 struct SettingsView: View {
 
     @Bindable private var settings = OverlaySettings.shared
+
+    @State private var hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
+    @State private var hasAccessibilityPermission = AccessibilityPermission.isGranted
 
     var body: some View {
         Form {
@@ -34,12 +38,30 @@ struct SettingsView: View {
                     range: OverlayMetrics.frameHeightRange,
                     format: { "\(Int($0.rounded())) pt" })
 
-                LabeledContent("Frames in a row") {
-                    Stepper(
-                        value: $settings.framesPerRow, in: OverlayMetrics.framesPerRowRange
-                    ) {
-                        Text("\(settings.framesPerRow)").monospacedDigit()
+                IntSliderRow(
+                    title: "Frames in a row",
+                    value: $settings.framesPerRow,
+                    range: OverlayMetrics.framesPerRowRange,
+                    format: { "\($0)" })
+
+                Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
+            }
+
+            Section("Character label") {
+                ColorPicker(
+                    "Color", selection: $settings.labelColor, supportsOpacity: true)
+
+                LabeledContent("Position") {
+                    VStack(spacing: 6) {
+                        Picker("Edge", selection: $settings.labelEdge) {
+                            ForEach(LabelEdge.allCases) { Text($0.title).tag($0) }
+                        }
+                        Picker("Alignment", selection: $settings.labelAlignment) {
+                            ForEach(LabelAlignment.allCases) { Text($0.title).tag($0) }
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
             }
 
@@ -56,6 +78,22 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Permissions") {
+                PermissionRow(
+                    title: "Screen Recording",
+                    explanation: "Reads client window titles and draws the previews.",
+                    isGranted: hasScreenRecordingPermission,
+                    settingsURL: ScreenRecordingPermission.settingsURL,
+                    request: { ScreenRecordingPermission.request() })
+
+                PermissionRow(
+                    title: "Accessibility",
+                    explanation: "Raises a client when its preview is clicked.",
+                    isGranted: hasAccessibilityPermission,
+                    settingsURL: AccessibilityPermission.settingsURL,
+                    request: { AccessibilityPermission.request() })
+            }
+
             Section {
                 HStack {
                     Spacer()
@@ -64,13 +102,22 @@ struct SettingsView: View {
                 }
             }
         }
+        .onAppear(perform: refreshPermissions)
+        // macOS posts nothing when a TCC decision changes, and polling for one is not worth it:
+        // granting happens over in System Settings, so coming back is the only moment the answer
+        // can have changed.
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+        ) { _ in
+            refreshPermissions()
+        }
         .formStyle(.grouped)
         // A grouped Form is a scroll view, and it is a few points taller than the window
         // SwiftUI sizes around it, so it grows a scroller it has no use for.
         .scrollDisabled(true)
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
-        .background { SettingsWindowConfigurator() }
+        .background { WindowConfigurator { SettingsWindow.adopt($0) } }
     }
 
     private var dragExplanation: String {
@@ -79,8 +126,52 @@ struct SettingsView: View {
             : "A press that travels more than \(Int(OverlayMetrics.dragThreshold)) pt moves the strip; anything shorter raises the client under the pointer."
     }
 
+    private func refreshPermissions() {
+        hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
+        hasAccessibilityPermission = AccessibilityPermission.isGranted
+    }
+
     private nonisolated static func percent(_ value: Double) -> String {
         "\(Int((value * 100).rounded()))%"
+    }
+}
+
+// MARK: - Permissions
+
+/// Where one TCC permission stands, and a way to go and fix it.
+private struct PermissionRow: View {
+    let title: String
+    let explanation: String
+    let isGranted: Bool
+    let settingsURL: URL
+    let request: @MainActor () -> Bool
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 10) {
+                Label(
+                    isGranted ? "Granted" : "Not granted",
+                    systemImage: isGranted
+                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(isGranted ? Color.green : Color.orange)
+
+                if !isGranted {
+                    Button("Open System Settings…", action: grant)
+                }
+            }
+        } label: {
+            Text(title)
+            Text(explanation)
+        }
+    }
+
+    /// The prompt only ever appears once per install, so the pane is where the switch actually
+    /// is — but asking first also registers eve-operator in that pane's list, which is the
+    /// difference between flicking a switch and having to add the app by hand.
+    private func grant() {
+        _ = request()
+        NSWorkspace.shared.open(settingsURL)
     }
 }
 
@@ -90,12 +181,18 @@ private struct SliderRow<Value: BinaryFloatingPoint>: View where Value.Stride: B
     let title: String
     @Binding var value: Value
     let range: ClosedRange<Value>
+    var step: Value.Stride?
     let format: (Value) -> String
 
     var body: some View {
         LabeledContent(title) {
             HStack(spacing: 10) {
-                Slider(value: $value, in: range)
+                // `Slider` has no "unstepped" value for `step`, so the two inits are distinct.
+                if let step {
+                    Slider(value: $value, in: range, step: step)
+                } else {
+                    Slider(value: $value, in: range)
+                }
                 Text(format(value))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -105,27 +202,27 @@ private struct SliderRow<Value: BinaryFloatingPoint>: View where Value.Stride: B
     }
 }
 
-// MARK: - Opening the pane
+/// `Slider` is floating-point only, so a whole-number setting travels as a `Double` and is
+/// rounded back on the way in.
+private struct IntSliderRow: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let format: (Int) -> String
 
-/// Hands the window SwiftUI built for the `Settings` scene over to `SettingsWindow`, and
-/// makes it behave like part of an overlay utility rather than a document window.
-private struct SettingsWindowConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        // The view has no window until it is installed in one.
-        DispatchQueue.main.async { adopt(view.window) }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        adopt(nsView.window)
-    }
-
-    private func adopt(_ window: NSWindow?) {
-        guard let window else { return }
-        SettingsWindow.adopt(window)
+    var body: some View {
+        SliderRow(
+            title: title,
+            value: Binding(
+                get: { Double(value) },
+                set: { value = Int($0.rounded()) }),
+            range: Double(range.lowerBound)...Double(range.upperBound),
+            step: 1,
+            format: { format(Int($0.rounded())) })
     }
 }
+
+// MARK: - Opening the pane
 
 /// Shows the `Settings` scene from outside SwiftUI.
 enum SettingsWindow {

@@ -44,7 +44,7 @@ final class OverlayPanel: NSPanel {
             defer: false)
 
         isFloatingPanel = true
-        level = .floating
+        level = settings.previewsAlwaysOnTop ? .floating : .normal
         // EVE clients are usually full-screen on their own Spaces; the strip has to follow.
         collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle,
@@ -94,6 +94,17 @@ final class OverlayPanel: NSPanel {
         applyAnchor()
         orderFrontRegardless()
         updateInteractivity()
+    }
+
+    /// Driven from the strip's `WindowConfigurator`, so flipping the setting takes effect at
+    /// once instead of at the next launch.
+    func setAlwaysOnTop(_ alwaysOnTop: Bool) {
+        let desired: NSWindow.Level = alwaysOnTop ? .floating : .normal
+        guard level != desired else { return }
+        level = desired
+        // Promoting a window does not re-order it; without this it would stay buried until
+        // something else happened to raise it.
+        if alwaysOnTop, hasContent { orderFrontRegardless() }
     }
 
     // MARK: - Empty state

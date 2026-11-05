@@ -7,6 +7,7 @@
 //
 
 import CoreGraphics
+import SwiftUI
 
 /// `nonisolated` so the constants can be used in default arguments and off the main actor.
 nonisolated enum OverlayMetrics {
@@ -27,6 +28,14 @@ nonisolated enum OverlayMetrics {
 
     /// When false the strip is dragged by moving past `dragThreshold`; when true ⌘ is required.
     static let defaultRequiresCommandToDrag = false
+
+    /// Whether the strip floats above other applications' windows.
+    static let defaultPreviewsAlwaysOnTop = true
+
+    /// Colour of the character name drawn inside a frame, and where in the frame it sits.
+    static let defaultLabelColor = Color.white
+    static let defaultLabelEdge = LabelEdge.bottom
+    static let defaultLabelAlignment = LabelAlignment.leading
 
     // MARK: - Legal ranges for those settings
 

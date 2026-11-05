@@ -7,7 +7,6 @@
 
 import CoreGraphics
 import Foundation
-import ScreenCaptureKit
 
 struct EVEWindow: Identifiable, Hashable, Sendable {
     let id: CGWindowID
@@ -22,16 +21,6 @@ struct EVEWindow: Identifiable, Hashable, Sendable {
         self.processIdentifier = processIdentifier
         self.frame = frame
         self.isActive = isActive
-    }
-
-    init(_ window: SCWindow, frontmostProcess: pid_t?) {
-        let pid = window.owningApplication?.processID ?? -1
-        self.init(
-            id: window.windowID,
-            title: window.title ?? "",
-            processIdentifier: pid,
-            frame: window.frame,
-            isActive: pid == frontmostProcess)
     }
 
     /// Label for the frame. EVE titles look like "EVE - Character Name"; a client only sets
