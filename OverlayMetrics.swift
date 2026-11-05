@@ -22,6 +22,20 @@ nonisolated enum OverlayMetrics {
     static let padding: CGFloat = 6
     static let cornerRadius: CGFloat = 5
 
+    /// Distance from the top of the screen when the strip has no remembered position.
+    static let defaultTopInset: CGFloat = 8
+
+    /// How far the pointer has to travel before a press counts as a drag rather than a click.
+    static let dragThreshold: CGFloat = 4
+
+    /// Character name shown inside a frame.
+    static let labelFontSize: CGFloat = 9
+
+    /// Status pills wrap instead of stretching the strip.
+    static let statusMaxWidth: CGFloat = 220
+
+    static let hoverAnimationDuration: Double = 0.12
+
     /// Resting opacity of a frame, and the opacity it fades to while hovered.
     static let idleOpacity: Double = 0.4
     static let hoverOpacity: Double = 1.0

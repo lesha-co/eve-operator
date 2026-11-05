@@ -15,6 +15,14 @@ enum WindowDiscovery {
     /// this is not a client window.
     private static let minimumWindowSize = CGSize(width: 200, height: 150)
 
+    /// Only the real client window carries a title ("EVE - Character Name"). Every helper
+    /// window EVE publishes at layer 0 is untitled, and one of them — a square surface parked
+    /// at the left edge — grows to 500×500, which clears `minimumWindowSize` and used to show
+    /// up in the strip as "Untitled window". Untitled windows therefore have to be
+    /// client-sized before we believe them, which still covers a client that is logging in
+    /// and has not set its title yet.
+    private static let minimumUntitledWindowSize = CGSize(width: 1000, height: 700)
+
     /// All shareable windows owned by a running EVE client, in a stable order.
     ///
     /// Uses `onScreenWindowsOnly: false` on purpose: EVE clients are routinely full-screen on
@@ -33,8 +41,11 @@ enum WindowDiscovery {
                     pids.contains(owner.processID)
                 else { return false }
                 guard window.windowLayer == 0 else { return false }
-                return window.frame.width >= minimumWindowSize.width
-                    && window.frame.height >= minimumWindowSize.height
+                let required =
+                    (window.title ?? "").isEmpty
+                    ? minimumUntitledWindowSize : minimumWindowSize
+                return window.frame.width >= required.width
+                    && window.frame.height >= required.height
             }
             .sorted { lhs, rhs in
                 let left = lhs.title ?? ""

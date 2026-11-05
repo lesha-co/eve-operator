@@ -34,9 +34,10 @@ struct EVEWindow: Identifiable, Hashable, Sendable {
             isActive: pid == frontmostProcess)
     }
 
-    /// What to show in the sidebar. EVE titles look like "EVE - Character Name".
+    /// Label for the frame. EVE titles look like "EVE - Character Name"; a client only sets
+    /// one once a character is in, so fall back to something that still identifies the client.
     var displayName: String {
-        title.isEmpty ? "Untitled window #\(id)" : title
+        title.isEmpty ? "EVE (signing in\u{2026})" : title
     }
 
     /// The character name, when the title follows EVE's "EVE - Name" convention.

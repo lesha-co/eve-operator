@@ -51,6 +51,10 @@ struct OverlayStripView: View {
         }
         .padding(OverlayMetrics.padding)
         .fixedSize()
+        // Keeps a real AppKit view under every pixel of the panel, including the padding.
+        // Bare SwiftUI hosting view counts as window background, which AppKit handles itself
+        // instead of delivering the event. It also puts the context menu on the whole strip.
+        .background { MouseTracker(menuItems: menuItems) }
         .task { await model.monitor() }
     }
 
@@ -96,9 +100,12 @@ struct OverlayStripView: View {
         return { Task { await model.refresh() } }
     }
 
+    /// "Rescan" is the 2-second poll run on demand: it re-enumerates EVE's windows, then starts
+    /// a capture stream for any that appeared and tears down the streams of any that vanished.
+    /// Useful when a thumbnail has gone stale, redundant otherwise.
     private var menuItems: [MouseTracker.MenuEntry] {
         var items: [MouseTracker.MenuEntry] = [
-            .init(title: "Refresh", action: { Task { await model.refresh() } })
+            .init(title: "Rescan EVE Windows", action: { Task { await model.refresh() } })
         ]
         if model.isEVEInstalled {
             items.append(.init(title: "Launch Another Client", action: model.launchEVE))
@@ -138,7 +145,7 @@ private struct ClientFrameView: View {
                 .opacity(opacity)
 
             Text(window.characterName ?? window.displayName)
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: OverlayMetrics.labelFontSize, weight: .medium))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
@@ -154,8 +161,8 @@ private struct ClientFrameView: View {
         .overlay {
             MouseTracker(onHover: onHover, onClick: onClick, menuItems: menuItems)
         }
-        .animation(.easeOut(duration: 0.12), value: isHovered)
-        .help("Click to bring \(window.displayName) to the front · ⌘-drag to move the strip")
+        .animation(.easeOut(duration: OverlayMetrics.hoverAnimationDuration), value: isHovered)
+        .help("Click to bring \(window.displayName) to the front · drag to move the strip")
     }
 }
 
@@ -173,7 +180,7 @@ private struct StatusPill: View {
         HStack(spacing: 5) {
             Image(systemName: systemImage)
             Text(text)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: OverlayMetrics.labelFontSize + 1, weight: .medium))
                 .multilineTextAlignment(.leading)
         }
         .foregroundStyle(.white)
@@ -182,11 +189,11 @@ private struct StatusPill: View {
         .background(
             .black.opacity(0.65), in: RoundedRectangle(cornerRadius: OverlayMetrics.cornerRadius)
         )
-        .frame(maxWidth: 220)
+        .frame(maxWidth: OverlayMetrics.statusMaxWidth)
         .opacity(isHovered ? OverlayMetrics.statusHoverOpacity : OverlayMetrics.statusIdleOpacity)
         .overlay {
             MouseTracker(onHover: { isHovered = $0 }, onClick: action, menuItems: menuItems)
         }
-        .animation(.easeOut(duration: 0.12), value: isHovered)
+        .animation(.easeOut(duration: OverlayMetrics.hoverAnimationDuration), value: isHovered)
     }
 }

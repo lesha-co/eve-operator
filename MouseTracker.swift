@@ -2,11 +2,13 @@
 //  MouseTracker.swift
 //  eve-operator
 //
-//  Hover and click handling for a window that never becomes key.
+//  Hit targets for a window that never becomes key.
 //
 //  SwiftUI's `onHover`/`onTapGesture` only fire dependably in the active app, and the overlay
-//  is a non-activating panel by design. An AppKit tracking area with `.activeAlways` plus
-//  `acceptsFirstMouse` keeps the strip responsive while EVE stays focused.
+//  is a non-activating panel by design. Hover and the context menu work from here, through an
+//  `.activeAlways` tracking area. Clicks do not: `isMovableByWindowBackground` and AppKit's
+//  first-mouse handling both get a say in the mouse-down first, so `OverlayPanel` resolves
+//  press-versus-drag itself and calls `performClick()` on the view it hit.
 //
 
 import AppKit
@@ -50,6 +52,7 @@ struct MouseTracker: NSViewRepresentable {
     }
 }
 
+/// A transparent region of the strip that `OverlayPanel` can hit-test and drive.
 final class MouseTrackingView: NSView {
 
     var onHover: (Bool) -> Void = { _ in }
@@ -57,6 +60,9 @@ final class MouseTrackingView: NSView {
 
     private var trackingArea: NSTrackingArea?
     private var isInside = false
+
+    /// Called by `OverlayPanel` once it has decided a press was a click and not a drag.
+    func performClick() { onClick() }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -89,17 +95,11 @@ final class MouseTrackingView: NSView {
         }
     }
 
-    /// The overlay is never the active app, so the first click has to count.
+    /// The overlay is never the active app, so the first click has to count — and a view that
+    /// draws nothing would otherwise count as window background, which turns every mouse-down
+    /// into a window drag.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        // ⌘-drag anywhere on the strip repositions it; a plain click activates the client.
-        if event.modifierFlags.contains(.command) {
-            window?.performDrag(with: event)
-        } else {
-            onClick()
-        }
-    }
+    override var mouseDownCanMoveWindow: Bool { false }
 }
 
 /// `NSMenuItem` that calls a closure, so menus can be declared inline.

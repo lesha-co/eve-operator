@@ -15,6 +15,7 @@ enum WindowActivator {
         case accessibilityDenied
         case windowNotFound
         case raiseFailed(AXError)
+        case activationRefused
 
         var errorDescription: String? {
             switch self {
@@ -26,6 +27,8 @@ enum WindowActivator {
                 return "Activated the client, but couldn't find that exact window."
             case .raiseFailed(let error):
                 return "Raising the window failed (AXError \(error.rawValue))."
+            case .activationRefused:
+                return "macOS refused to bring that client forward."
             }
         }
     }
@@ -43,9 +46,13 @@ enum WindowActivator {
             throw ActivationError.accessibilityDenied
         }
 
-        guard let element = accessibilityWindow(matching: window) else {
+        let application = AXUIElementCreateApplication(window.processIdentifier)
+
+        guard let element = accessibilityWindow(matching: window, in: application) else {
             // Best effort: pulling the client's process forward raises its windows anyway.
-            app.activate()
+            guard makeFrontmost(application, app) else {
+                throw ActivationError.activationRefused
+            }
             if exactWindowRequired { throw ActivationError.windowNotFound }
             return
         }
@@ -53,17 +60,38 @@ enum WindowActivator {
         AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
         let result = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
         AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-        app.activate()
 
+        guard makeFrontmost(application, app) else { throw ActivationError.activationRefused }
         guard result == .success else { throw ActivationError.raiseFailed(result) }
+    }
+
+    /// Brings the client's process in front of everything else.
+    ///
+    /// Since macOS 14, `NSRunningApplication.activate()` only works for a caller that is itself
+    /// the active app, or that has been yielded activation by it — and the overlay is a
+    /// non-activating panel that is never active, by design. That is the whole reason clicking
+    /// a thumbnail used to do nothing until eve-operator had been brought forward from the
+    /// Dock. Accessibility's `kAXFrontmost` is not subject to cooperative activation, so it is
+    /// the one that actually does the work here; `activate()` is kept for the rare case where
+    /// the strip *is* the active app.
+    private static func makeFrontmost(
+        _ application: AXUIElement, _ app: NSRunningApplication
+    ) -> Bool {
+        let raised = AXUIElementSetAttributeValue(
+            application, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        let activated = app.activate()
+        return raised == .success || activated
     }
 
     // MARK: - Accessibility lookup
 
     /// Resolves the `AXUIElement` for a `CGWindowID`, trying the exact id bridge first and
     /// falling back to title, then geometry.
-    static func accessibilityWindow(matching window: EVEWindow) -> AXUIElement? {
-        let application = AXUIElementCreateApplication(window.processIdentifier)
+    static func accessibilityWindow(
+        matching window: EVEWindow,
+        in application: AXUIElement? = nil
+    ) -> AXUIElement? {
+        let application = application ?? AXUIElementCreateApplication(window.processIdentifier)
         let candidates = windowElements(of: application)
         guard !candidates.isEmpty else { return nil }
 
