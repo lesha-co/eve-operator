@@ -45,14 +45,14 @@ final class WindowCaptureSession {
     }()
 
     /// Frames are only ever shown this tall, so there is no point streaming more pixels.
-    @ObservationIgnored private let preferredHeight: CGFloat
+    @ObservationIgnored private var preferredHeight: CGFloat
     @ObservationIgnored private var stream: SCStream?
     @ObservationIgnored private var forwarder: FrameForwarder?
     @ObservationIgnored private var capturedFrame: CGRect = .zero
     @ObservationIgnored private let outputQueue = DispatchQueue(
         label: "co.lesha.eve-operator.capture", qos: .userInitiated)
 
-    init(preferredHeight: CGFloat = OverlayMetrics.frameHeight) {
+    init(preferredHeight: CGFloat = OverlayMetrics.defaultFrameHeight) {
         self.preferredHeight = preferredHeight
     }
 
@@ -117,6 +117,15 @@ final class WindowCaptureSession {
         frameSize = .zero
         state = .idle
         setContents(nil)
+    }
+
+    /// Re-configures the stream when the user changes the on-screen frame height, so the
+    /// thumbnail keeps streaming at roughly the resolution it is drawn at.
+    func updatePreferredHeight(_ height: CGFloat) async {
+        guard abs(preferredHeight - height) > 0.5 else { return }
+        preferredHeight = height
+        guard let stream, state == .streaming, capturedFrame.height > 0 else { return }
+        try? await stream.updateConfiguration(configuration(forSize: capturedFrame.size))
     }
 
     /// Re-configures the stream when the captured window has been resized.

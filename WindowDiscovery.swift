@@ -40,7 +40,17 @@ enum WindowDiscovery {
                 guard let owner = window.owningApplication,
                     pids.contains(owner.processID)
                 else { return false }
-                guard window.windowLayer == 0 else { return false }
+                // Deliberately not filtered on `windowLayer`. A client usually sits at layer
+                // 0, but EVE's fixed-full-screen mode raises the window to the status-bar
+                // level (25) while its own client is frontmost, so that it covers the menu
+                // bar, and drops it back as soon as it is not — which made the window vanish
+                // from the strip for exactly as long as it was in front. Pinning the window
+                // to a range of layers instead is no good either: ScreenCaptureKit's idea of
+                // the layer visibly lags CoreGraphics', so the value here is whatever it
+                // happened to be at the last refresh. Size and title do all the work below,
+                // and they already reject everything else EVE publishes: the zero-size
+                // placeholders it parks at layer 1000, its menu-bar-sized helpers, and the
+                // untitled 500×500 surface at the left edge.
                 let required =
                     (window.title ?? "").isEmpty
                     ? minimumUntitledWindowSize : minimumWindowSize

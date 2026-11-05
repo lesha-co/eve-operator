@@ -17,13 +17,12 @@ final class OperatorModel {
     /// One live stream per discovered window, keyed by `CGWindowID`.
     private(set) var sessions: [CGWindowID: WindowCaptureSession] = [:]
 
-    private(set) var discoveryError: String?
     private(set) var hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
     private(set) var hasAccessibilityPermission = AccessibilityPermission.isGranted
-    private(set) var isEVEInstalled = EVEApplication.isInstalled
-    private(set) var runningClientCount = 0
 
     var activationError: String?
+
+    private let settings = OverlaySettings.shared
 
     private static let refreshInterval = Duration.seconds(2)
 
@@ -31,6 +30,10 @@ final class OperatorModel {
 
     /// Polls for window changes until the enclosing `task` is cancelled.
     func monitor() async {
+        // An empty strip draws nothing, so there is no pill left to ask for this. Without
+        // the prompt a first run would just sit there blank with no way to find out why.
+        if !hasScreenRecordingPermission { ScreenRecordingPermission.request() }
+
         while !Task.isCancelled {
             await refresh()
             try? await Task.sleep(for: Self.refreshInterval)
@@ -45,12 +48,8 @@ final class OperatorModel {
         if !hasAccessibilityPermission {
             hasAccessibilityPermission = AccessibilityPermission.isGranted
         }
-        isEVEInstalled = EVEApplication.isInstalled
-        runningClientCount = EVEApplication.runningInstances().count
-
         guard hasScreenRecordingPermission else {
             windows = []
-            discoveryError = nil
             await stopAllSessions()
             return
         }
@@ -58,11 +57,9 @@ final class OperatorModel {
         do {
             let shareable = try await WindowDiscovery.shareableWindows()
             windows = WindowDiscovery.snapshot(of: shareable)
-            discoveryError = nil
             await syncSessions(with: shareable)
         } catch {
             windows = []
-            discoveryError = error.localizedDescription
             await stopAllSessions()
         }
     }
@@ -79,9 +76,10 @@ final class OperatorModel {
 
         for window in shareable {
             if let session = sessions[window.windowID] {
+                await session.updatePreferredHeight(settings.frameHeight)
                 await session.adapt(to: EVEWindow(window, frontmostProcess: nil))
             } else {
-                let session = WindowCaptureSession()
+                let session = WindowCaptureSession(preferredHeight: settings.frameHeight)
                 sessions[window.windowID] = session
                 await session.start(window: window)
             }
@@ -110,20 +108,7 @@ final class OperatorModel {
         }
     }
 
-    func requestScreenRecordingPermission() {
-        ScreenRecordingPermission.request()
-        NSWorkspace.shared.open(ScreenRecordingPermission.settingsURL)
-    }
-
     func requestAccessibilityPermission() {
         AccessibilityPermission.request()
-    }
-
-    func launchEVE() {
-        guard isEVEInstalled else { return }
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(
-            at: EVEApplication.bundleURL, configuration: configuration)
     }
 }

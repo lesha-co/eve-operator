@@ -24,17 +24,20 @@ final class OverlayPanel: NSPanel {
 
     private var mouseMonitor: Any?
 
+    private let settings = OverlaySettings.shared
+
     /// Left-button tracking state; see `handle(_:)`.
     private var pressOrigin: NSPoint?
     private var pressFrameOrigin: NSPoint?
     private weak var pressTarget: MouseTrackingView?
+    private var pressCanDrag = true
     private var isDragging = false
 
     init(content: some View) {
         super.init(
             contentRect: NSRect(
                 x: 0, y: 0, width: 320,
-                height: OverlayMetrics.frameHeight + OverlayMetrics.padding * 2),
+                height: OverlayMetrics.defaultFrameHeight + OverlayMetrics.padding * 2),
             // `.nonactivatingPanel` keeps focus in EVE when the strip is clicked.
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -90,6 +93,23 @@ final class OverlayPanel: NSPanel {
         if anchor == nil { moveToDefaultPosition() }
         applyAnchor()
         orderFrontRegardless()
+        updateInteractivity()
+    }
+
+    // MARK: - Empty state
+
+    /// True once the strip holds at least one frame. With no clients it shrinks to its own
+    /// padding and draws nothing, and an invisible window must not go on swallowing clicks
+    /// meant for whatever is behind it.
+    private var hasContent: Bool {
+        frame.height > OverlayMetrics.emptyStripHeight + 1
+    }
+
+    /// The window is left in place rather than ordered out: AppKit stops laying out a window
+    /// that is off-screen, so it would never learn that a client had appeared and never come
+    /// back. Transparent and inert is the same thing to look at and keeps SwiftUI running.
+    private func updateInteractivity() {
+        ignoresMouseEvents = !hasContent
     }
 
     // MARK: - Pointer handling
@@ -115,7 +135,9 @@ final class OverlayPanel: NSPanel {
 
     /// - Returns: `true` when the event belonged to the strip and must not travel further.
     private func handle(_ event: NSEvent) -> Bool {
-        guard isVisible else { return false }
+        // The monitor runs ahead of `ignoresMouseEvents`, so the empty state is checked here
+        // too or an invisible strip would still eat the press.
+        guard isVisible, hasContent else { return false }
         // `locationInWindow` is relative to the event's own window, which is not necessarily
         // this one. Screen coordinates mean the same thing whoever received the event.
         let point = NSEvent.mouseLocation
@@ -126,11 +148,16 @@ final class OverlayPanel: NSPanel {
             pressOrigin = point
             pressFrameOrigin = frame.origin
             pressTarget = trackingView(at: point)
+            pressCanDrag =
+                !settings.requiresCommandToDrag || event.modifierFlags.contains(.command)
             isDragging = false
             return true
 
         case .leftMouseDragged:
             guard let start = pressOrigin, let origin = pressFrameOrigin else { return false }
+            // In ⌘-to-drag mode an unmodified press is swallowed but never moves the strip,
+            // so it still resolves to a click on mouse-up.
+            guard pressCanDrag else { return true }
             let offset = CGPoint(x: point.x - start.x, y: point.y - start.y)
             guard isDragging || hypot(offset.x, offset.y) >= OverlayMetrics.dragThreshold else {
                 return true
@@ -145,6 +172,7 @@ final class OverlayPanel: NSPanel {
             pressOrigin = nil
             pressFrameOrigin = nil
             pressTarget = nil
+            pressCanDrag = true
             isDragging = false
             clicked?.performClick()
             return true
@@ -173,6 +201,7 @@ final class OverlayPanel: NSPanel {
 
         // Re-read the applied frame so clamping is folded back into the anchor.
         captureAnchor()
+        updateInteractivity()
     }
 
     /// `setFrameOrigin` does not route through `setFrame(_:display:)`, so dragging would

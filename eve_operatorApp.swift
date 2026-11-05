@@ -12,9 +12,10 @@ struct eve_operatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // The app's only surface is the floating overlay panel, which AppKit owns.
+        // The strip itself is an AppKit panel the delegate owns; this scene exists so the
+        // settings pane gets its standard eve-operator → Settings… (⌘,) menu item.
         Settings {
-            EmptyView()
+            SettingsView()
         }
     }
 }
