@@ -100,6 +100,13 @@ final class OverlaySettings {
         didSet { defaults.set(labelAlignment.rawValue, forKey: Key.labelAlignment) }
     }
 
+    /// Location of the EVE Online client bundle — see `EVEApplication`. Editable because the
+    /// launcher's install directory is configurable, and because Singularity and other test
+    /// shards sit beside `tq` in their own bundles.
+    var eveBundlePath: String {
+        didSet { defaults.set(eveBundlePath, forKey: Key.eveBundlePath) }
+    }
+
     /// The two label settings as the single alignment the frame's `ZStack` needs.
     var labelPlacement: Alignment {
         Alignment(horizontal: labelAlignment.horizontal, vertical: labelEdge.vertical)
@@ -144,6 +151,8 @@ final class OverlaySettings {
                 Double(
                     OverlayMetrics.labelFontSizeRange.lowerBound)...Double(
                     OverlayMetrics.labelFontSizeRange.upperBound))
+        eveBundlePath = Self.path(
+            defaults, Key.eveBundlePath, or: OverlayMetrics.defaultEVEBundlePath)
     }
 
     func resetToDefaults() {
@@ -157,6 +166,7 @@ final class OverlaySettings {
         labelEdge = OverlayMetrics.defaultLabelEdge
         labelAlignment = OverlayMetrics.defaultLabelAlignment
         labelFontSize = OverlayMetrics.defaultLabelFontSize
+        eveBundlePath = OverlayMetrics.defaultEVEBundlePath
     }
 
     var isDefault: Bool {
@@ -169,6 +179,7 @@ final class OverlaySettings {
             && labelEdge == OverlayMetrics.defaultLabelEdge
             && labelAlignment == OverlayMetrics.defaultLabelAlignment
             && labelFontSize == OverlayMetrics.defaultLabelFontSize
+            && eveBundlePath == OverlayMetrics.defaultEVEBundlePath
             // Compared through the stored form: a colour round-tripped via sRGB is never
             // `==` to the catalogue colour it came from, even when it looks identical.
             && Self.hex(from: labelColor) == Self.hex(from: OverlayMetrics.defaultLabelColor)
@@ -192,6 +203,16 @@ final class OverlaySettings {
     ) -> Int {
         guard let value = defaults.object(forKey: key) as? Int else { return fallback }
         return OverlayMetrics.clamp(value, to: range)
+    }
+
+    /// A blank path would make `EVEApplication` look for the client at the root of the disk,
+    /// so it is treated as "unset". Tildes are expanded on the way in: the stored form stays
+    /// portable between home directories, and everything downstream gets a usable path.
+    private static func path(_ defaults: UserDefaults, _ key: String, or fallback: String) -> String
+    {
+        guard let raw = defaults.string(forKey: key) else { return fallback }
+        let expanded = (raw as NSString).expandingTildeInPath
+        return expanded.isEmpty ? fallback : expanded
     }
 
     private static func option<Option: RawRepresentable>(
@@ -241,5 +262,6 @@ final class OverlaySettings {
         static let labelColor = "overlay.labelColor"
         static let labelEdge = "overlay.labelEdge"
         static let labelAlignment = "overlay.labelAlignment"
+        static let eveBundlePath = "eve.bundlePath"
     }
 }

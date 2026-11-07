@@ -9,6 +9,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
 
@@ -43,12 +44,68 @@ private struct OtherView: View {
 
     var body: some View {
         Form {
+            LabeledContent("EVE Online") {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Middle-truncated: the install lives several directories deep and it is
+                    // the tail — the shard, `tq` or otherwise — that tells two apart.
+                    Text(settings.eveBundlePath)
+                        .font(.caption)
+
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .help(settings.eveBundlePath)
+
+                    if !bundleExists {
+                        Label(
+                            "No application at this path",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
+
+                    HStack {
+                        Button("Choose\u{2026}", action: choose)
+                    }
+                }
+            }
+            Text(
+                "EVE Online is a trademark of [Fenris Creations](https://fenris.com)."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            FullWidthDivider()
+
             LabeledContent("Defaults") {
                 Button("Reset to Defaults") { settings.resetToDefaults() }
                     .disabled(settings.isDefault)
             }
 
         }
+        .clipped()
+    }
+
+    /// Read through the setting rather than `EVEApplication.isInstalled` so the warning is
+    /// recomputed when the path changes — a static has nothing for SwiftUI to observe.
+    private var bundleExists: Bool {
+        FileManager.default.fileExists(atPath: settings.eveBundlePath)
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose the EVE Online client."
+        panel.prompt = "Choose"
+        // The stock install is inside `~/Library`, which the panel hides unless it is already
+        // looking at it, so it opens on the directory holding the current choice.
+        panel.directoryURL = URL(fileURLWithPath: settings.eveBundlePath)
+            .deletingLastPathComponent()
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        settings.eveBundlePath = url.standardizedFileURL.path
     }
 }
 

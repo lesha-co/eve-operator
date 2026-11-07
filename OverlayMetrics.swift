@@ -7,6 +7,7 @@
 //
 
 import CoreGraphics
+import Foundation
 import SwiftUI
 
 /// `nonisolated` so the constants can be used in default arguments and off the main actor.
@@ -38,6 +39,12 @@ nonisolated enum OverlayMetrics {
     static let defaultLabelAlignment = LabelAlignment.leading
     /// Character name shown inside a frame.
     static let defaultLabelFontSize: CGFloat = 9
+
+    /// Where the EVE Online launcher puts the Tranquility client.
+    static let defaultEVEBundlePath =
+        ("~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app" as NSString)
+        .expandingTildeInPath
+
     // MARK: - Legal ranges for those settings
 
     static let frameHeightRange: ClosedRange<CGFloat> = 40...300

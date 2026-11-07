@@ -10,23 +10,51 @@ import AppKit
 /// The application eve-operator attaches to.
 enum EVEApplication {
 
-    /// Location of the EVE Online client bundle.
-    static let bundlePath =
-        ("~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app" as NSString)
-        .expandingTildeInPath
+    /// Location of the EVE Online client bundle, as chosen in Settings → Other.
+    static var bundlePath: String { OverlaySettings.shared.eveBundlePath }
 
-    static let bundleURL = URL(fileURLWithPath: bundlePath)
+    static var bundleURL: URL { resolved.url }
 
     /// Read from the bundle on disk; `nil` when EVE is not installed at `bundlePath`.
-    static let bundleIdentifier: String? = Bundle(url: bundleURL)?.bundleIdentifier
-
-    static let displayName = "EVE Online"
+    static var bundleIdentifier: String? { resolved.identifier }
 
     static var isInstalled: Bool {
         FileManager.default.fileExists(atPath: bundlePath)
     }
 
-    private static let canonicalBundleURL = canonical(bundleURL)
+    // MARK: - Resolving the configured path
+
+    /// Everything `classify` needs about the configured bundle. Reading `Info.plist` and
+    /// resolving symlinks both touch the disk, and the answers are wanted on every poll, so
+    /// they are worked out once per path rather than once per question.
+    private struct Resolved {
+        let path: String
+        let url: URL
+        let canonicalURL: URL
+        let identifier: String?
+    }
+
+    private static var cache: Resolved?
+
+    /// Recomputed whenever the setting changes, taking the scan and every verdict with it:
+    /// those were reached against a bundle this app is no longer attached to.
+    private static var resolved: Resolved {
+        let path = bundlePath
+        if let cache, cache.path == path { return cache }
+
+        let url = URL(fileURLWithPath: path)
+        let resolved = Resolved(
+            path: path,
+            url: url,
+            canonicalURL: canonical(url),
+            identifier: Bundle(url: url)?.bundleIdentifier)
+
+        cache = resolved
+        scan = nil
+        verdicts = [:]
+
+        return resolved
+    }
 
     // MARK: - Running clients
 
@@ -51,6 +79,9 @@ enum EVEApplication {
     /// free in the steady state.
     static func processIdentifiers() -> Set<pid_t> {
         _ = watcher
+        // Before the early return, and only once per scan: a changed setting drops both the
+        // held scan and the verdict table, and the loop below must see one settled bundle.
+        let bundle = resolved
         if let scan { return scan }
 
         let running = NSWorkspace.shared.runningApplications
@@ -61,7 +92,7 @@ enum EVEApplication {
             let pid = app.processIdentifier
             // An undecidable process is left out of the table rather than recorded, so it is
             // looked at again on the next scan.
-            guard let isEVE = verdicts[pid] ?? classify(app) else { continue }
+            guard let isEVE = verdicts[pid] ?? classify(app, against: bundle) else { continue }
             current[pid] = isEVE
             if isEVE { identifiers.insert(pid) }
         }
@@ -96,14 +127,14 @@ enum EVEApplication {
     /// `nil` when the process reports no bundle at all, which means LaunchServices does not know
     /// about it yet; recording that as a "no" would be wrong for the rest of its life. No process
     /// on a normal desktop is in that state for long, so re-asking costs nothing in practice.
-    private static func classify(_ app: NSRunningApplication) -> Bool? {
+    private static func classify(_ app: NSRunningApplication, against bundle: Resolved) -> Bool? {
         let url = app.bundleURL
         let identifier = app.bundleIdentifier
         guard url != nil || identifier != nil else { return nil }
 
-        if let url, canonical(url) == canonicalBundleURL { return true }
+        if let url, canonical(url) == bundle.canonicalURL { return true }
         // Fall back to the bundle id so clients launched from a copy/symlink are still found.
-        return bundleIdentifier != nil && identifier == bundleIdentifier
+        return bundle.identifier != nil && identifier == bundle.identifier
     }
 
     private static func canonical(_ url: URL) -> URL {
