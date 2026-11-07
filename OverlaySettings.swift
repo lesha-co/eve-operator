@@ -65,6 +65,11 @@ final class OverlaySettings {
         didSet { defaults.set(Double(frameHeight), forKey: Key.frameHeight) }
     }
 
+    /// Point size of the character name drawn inside each frame.
+    var labelFontSize: CGFloat {
+        didSet { defaults.set(labelFontSize, forKey: Key.labelFontSize) }
+    }
+
     /// Frames past this many wrap onto the next row.
     var framesPerRow: Int {
         didSet { defaults.set(framesPerRow, forKey: Key.framesPerRow) }
@@ -132,6 +137,13 @@ final class OverlaySettings {
             defaults, Key.labelEdge, or: OverlayMetrics.defaultLabelEdge)
         labelAlignment = Self.option(
             defaults, Key.labelAlignment, or: OverlayMetrics.defaultLabelAlignment)
+        labelFontSize = Self.double(
+            defaults, Key.labelFontSize,
+            or: OverlayMetrics.defaultLabelFontSize,
+            in:
+                Double(
+                    OverlayMetrics.labelFontSizeRange.lowerBound)...Double(
+                    OverlayMetrics.labelFontSizeRange.upperBound))
     }
 
     func resetToDefaults() {
@@ -144,6 +156,7 @@ final class OverlaySettings {
         labelColor = OverlayMetrics.defaultLabelColor
         labelEdge = OverlayMetrics.defaultLabelEdge
         labelAlignment = OverlayMetrics.defaultLabelAlignment
+        labelFontSize = OverlayMetrics.defaultLabelFontSize
     }
 
     var isDefault: Bool {
@@ -155,6 +168,7 @@ final class OverlaySettings {
             && previewsAlwaysOnTop == OverlayMetrics.defaultPreviewsAlwaysOnTop
             && labelEdge == OverlayMetrics.defaultLabelEdge
             && labelAlignment == OverlayMetrics.defaultLabelAlignment
+            && labelFontSize == OverlayMetrics.defaultLabelFontSize
             // Compared through the stored form: a colour round-tripped via sRGB is never
             // `==` to the catalogue colour it came from, even when it looks identical.
             && Self.hex(from: labelColor) == Self.hex(from: OverlayMetrics.defaultLabelColor)
@@ -220,6 +234,7 @@ final class OverlaySettings {
         static let idleOpacity = "overlay.idleOpacity"
         static let hoverOpacity = "overlay.hoverOpacity"
         static let frameHeight = "overlay.frameHeight"
+        static let labelFontSize = "overlay.labelFontSize"
         static let framesPerRow = "overlay.framesPerRow"
         static let requiresCommandToDrag = "overlay.requiresCommandToDrag"
         static let previewsAlwaysOnTop = "overlay.previewsAlwaysOnTop"

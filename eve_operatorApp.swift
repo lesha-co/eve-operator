@@ -29,7 +29,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = OverlayPanel(content: OverlayStripView(model: model))
         panel.show()
         self.panel = panel
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { SettingsWindow.open() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {

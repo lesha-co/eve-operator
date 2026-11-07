@@ -12,44 +12,134 @@ import SwiftUI
 
 struct SettingsView: View {
 
-    @Bindable private var settings = OverlaySettings.shared
+    var body: some View {
 
-    @State private var hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
-    @State private var hasAccessibilityPermission = AccessibilityPermission.isGranted
+        TabView {
+            Tab("Previews", systemImage: "rectangle.on.rectangle") {
+                StripSettings()
+            }
+            Tab("Labels", systemImage: "textformat") {
+                LabelSettings()
+            }
+            Tab("Permissions", systemImage: "lock.shield") {
+                PermissionSettings()
+            }
+            Tab("Other", systemImage: "info.circle") {
+                AboutView()
+            }
+        }
+        .labeledContentStyle(.boldLabel)
+        .scenePadding()
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
+        .background { WindowConfigurator { SettingsWindow.adopt($0) } }
+
+    }
+}
+
+private struct AboutView: View {
+
+    @Bindable private var settings = OverlaySettings.shared
 
     var body: some View {
         Form {
-            Section("Frames") {
-                SliderRow(
-                    title: "Default opacity",
-                    value: $settings.idleOpacity,
-                    range: OverlayMetrics.opacityRange,
-                    format: Self.percent)
+            LabeledContent("Defaults") {
+                Button("Reset to Defaults") { settings.resetToDefaults() }
+                    .disabled(settings.isDefault)
+            }
+            
+        }
+    }
+}
 
-                SliderRow(
-                    title: "Focused opacity",
-                    value: $settings.hoverOpacity,
-                    range: OverlayMetrics.opacityRange,
-                    format: Self.percent)
+// MARK: - Tabs
 
-                SliderRow(
-                    title: "Frame height",
-                    value: $settings.frameHeight,
-                    range: OverlayMetrics.frameHeightRange,
-                    format: { "\(Int($0.rounded())) pt" })
+private struct StripSettings: View {
 
-                IntSliderRow(
-                    title: "Frames in a row",
-                    value: $settings.framesPerRow,
-                    range: OverlayMetrics.framesPerRowRange,
-                    format: { "\($0)" })
+    @Bindable private var settings = OverlaySettings.shared
 
-                Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
+    var body: some View {
+
+        Form {
+
+            SliderRow(
+                title: "Default opacity",
+                value: $settings.idleOpacity,
+                range: OverlayMetrics.opacityRange,
+                format: percent)
+
+            SliderRow(
+                title: "Focused opacity",
+                value: $settings.hoverOpacity,
+                range: OverlayMetrics.opacityRange,
+                format: percent)
+
+            SliderRow(
+                title: "Frame height",
+                value: $settings.frameHeight,
+                range: OverlayMetrics.frameHeightRange,
+                step: 10.0,
+                format: { "\(Int($0.rounded())) pt" })
+
+            Picker("Frames in a row", selection: $settings.framesPerRow) {
+                ForEach(OverlayMetrics.framesPerRowRange, id: \.self) { Text("\($0)").tag($0) }
+            }
+            .pickerStyle(.segmented)
+
+            Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
+            
+            FullWidthDivider()
+            
+            LabeledContent("Dragging") {
+                Picker("Drag", selection: $settings.requiresCommandToDrag) {
+                    VStack(alignment: .leading) {
+                        Text("Drag from anywhere")
+                        Text(
+                            "A press that travels more than \(Int(OverlayMetrics.dragThreshold)) pt moves the strip; anything shorter raises the client under the pointer."
+                        ).font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .tag(false)
+                    VStack(alignment: .leading) {
+                        Text("Hold ⌘ to drag")
+                        Text(
+                            "A plain click always raises the client under the pointer. Hold ⌘ and drag to move the strip."
+                        ).font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .tag(true)
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
             }
 
-            Section("Character label") {
-                ColorPicker(
-                    "Color", selection: $settings.labelColor, supportsOpacity: true)
+            FullWidthDivider()
+
+            PortraitView()
+        }
+        .clipped()
+    }
+
+    private nonisolated func percent(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))%"
+    }
+}
+
+private struct LabelSettings: View {
+
+    @Bindable private var settings = OverlaySettings.shared
+
+    var body: some View {
+        Form {
+            Section {
+                ColorPicker("Color", selection: $settings.labelColor, supportsOpacity: true)
+
+                SliderRow(
+                    title: "Font size",
+                    value: $settings.labelFontSize,
+                    range: OverlayMetrics.labelFontSizeRange,
+                    step: 1.0,
+                    format: { "\(Int($0.rounded())) pt" })
 
                 LabeledContent("Position") {
                     VStack(spacing: 6) {
@@ -64,75 +154,51 @@ struct SettingsView: View {
                     .labelsHidden()
                 }
             }
+        }
+    }
+}
 
-            Section("Moving the strip") {
-                Picker("Drag", selection: $settings.requiresCommandToDrag) {
-                    Text("Drag from anywhere").tag(false)
-                    Text("Hold ⌘ to drag").tag(true)
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
+private struct PermissionSettings: View {
 
-                Text(dragExplanation)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    @State private var hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
+    @State private var hasAccessibilityPermission = AccessibilityPermission.isGranted
 
-            Section("Permissions") {
+    var body: some View {
+        Form {
+            Section {
+
                 PermissionRow(
                     title: "Screen Recording",
-                    explanation: "Reads client window titles and draws the previews.",
+                    explanation: "Must be granted in order to record windows",
                     isGranted: hasScreenRecordingPermission,
-                    settingsURL: ScreenRecordingPermission.settingsURL,
+                    settingsURL: ScreenRecordingPermission.settingsURL, buttonText: "Open Screen Recording Settings",
                     request: { ScreenRecordingPermission.request() })
-
+                FullWidthDivider()
                 PermissionRow(
                     title: "Accessibility",
-                    explanation: "Raises a client when its preview is clicked.",
+                    explanation: "Must be granted in order to activate EVE Online windows",
                     isGranted: hasAccessibilityPermission,
-                    settingsURL: AccessibilityPermission.settingsURL,
+                    settingsURL: AccessibilityPermission.settingsURL, buttonText: "Open Accessibility Settings",
                     request: { AccessibilityPermission.request() })
+
             }
 
-            Section {
-                HStack {
-                    Spacer()
-                    Button("Reset to Defaults") { settings.resetToDefaults() }
-                        .disabled(settings.isDefault)
-                }
-            }
         }
-        .onAppear(perform: refreshPermissions)
+        .clipped()
+        .onAppear(perform: refresh)
         // macOS posts nothing when a TCC decision changes, and polling for one is not worth it:
         // granting happens over in System Settings, so coming back is the only moment the answer
         // can have changed.
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in
-            refreshPermissions()
+            refresh()
         }
-        .formStyle(.grouped)
-        // A grouped Form is a scroll view, and it is a few points taller than the window
-        // SwiftUI sizes around it, so it grows a scroller it has no use for.
-        .scrollDisabled(true)
-        .frame(width: 420)
-        .fixedSize(horizontal: false, vertical: true)
-        .background { WindowConfigurator { SettingsWindow.adopt($0) } }
     }
 
-    private var dragExplanation: String {
-        settings.requiresCommandToDrag
-            ? "A plain click always raises the client under the pointer. Hold ⌘ and drag to move the strip."
-            : "A press that travels more than \(Int(OverlayMetrics.dragThreshold)) pt moves the strip; anything shorter raises the client under the pointer."
-    }
-
-    private func refreshPermissions() {
+    private func refresh() {
         hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
         hasAccessibilityPermission = AccessibilityPermission.isGranted
-    }
-
-    private nonisolated static func percent(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
     }
 }
 
@@ -144,11 +210,12 @@ private struct PermissionRow: View {
     let explanation: String
     let isGranted: Bool
     let settingsURL: URL
+    let buttonText: String
     let request: @MainActor () -> Bool
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 10) {
+        LabeledContent(title) {
+            VStack(alignment: .leading) {
                 Label(
                     isGranted ? "Granted" : "Not granted",
                     systemImage: isGranted
@@ -156,14 +223,12 @@ private struct PermissionRow: View {
                 )
                 .foregroundStyle(isGranted ? Color.green : Color.orange)
 
-                if !isGranted {
-                    Button("Open System Settings…", action: grant)
-                }
+                Button(buttonText, action: grant)
+                Text(explanation).font(.caption)
+
             }
-        } label: {
-            Text(title)
-            Text(explanation)
         }
+        
     }
 
     /// The prompt only ever appears once per install, so the pane is where the switch actually
@@ -175,7 +240,42 @@ private struct PermissionRow: View {
     }
 }
 
+// MARK: - Styling
+
+/// Bolds every `LabeledContent` label in the pane, so the label column reads as the heading it
+/// is. Rebuilding the row as a plain `LabeledContent` rather than, say, an `HStack` is what keeps
+/// the `Form`'s label/content columns: a style that lays the two slots out itself arrives at the
+/// form as one opaque view and lands wholly in the content column. SwiftUI resolves the nested
+/// row against the *next* style along, so this neither recurses nor loses the columns.
+///
+/// Controls that render their own label — `ColorPicker`, `Toggle` — are not `LabeledContent` and
+/// are not reached by this; they bold their label at the call site.
+private struct BoldLabelStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        LabeledContent {
+            configuration.content
+        } label: {
+            configuration.label.bold()
+        }
+    }
+}
+
+extension LabeledContentStyle where Self == BoldLabelStyle {
+    fileprivate static var boldLabel: Self { Self() }
+}
+
 // MARK: - Rows
+
+/// A `Form` in the `.columns` style lays each row out as `label | content`, and a bare
+/// `Divider()` — having no label — lands wholly in the content column, so the line starts
+/// halfway across. Nothing in the grid vocabulary (`gridCellColumns`, `Section` headers,
+/// `frame(maxWidth:)`) reaches back over the label column, so the rule is simply drawn wider
+/// than the row and the enclosing `Form` is asked to `.clipped()` the excess.
+private struct FullWidthDivider: View {
+    var body: some View {
+        Divider().padding(.horizontal, -1000).padding(.vertical, 8)
+    }
+}
 
 private struct SliderRow<Value: BinaryFloatingPoint>: View where Value.Stride: BinaryFloatingPoint {
     let title: String
@@ -284,4 +384,17 @@ enum SettingsWindow {
             window.orderFrontRegardless()
         }
     }
+}
+
+#Preview("Settings") {
+    SettingsView()
+}
+
+#Preview("Permissions") {
+    Form {
+        PermissionSettings()
+    }
+    .labeledContentStyle(.boldLabel)
+    .scenePadding()
+    .frame(width: 460)
 }

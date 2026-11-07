@@ -145,7 +145,7 @@ private struct ClientFrameView: View {
                 .opacity(opacity)
 
             Text(window.characterName ?? window.displayName)
-                .font(.system(size: OverlayMetrics.labelFontSize, weight: .medium))
+                .font(.system(size: settings.labelFontSize, weight: .medium))
                 .foregroundStyle(settings.labelColor)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
@@ -184,7 +184,7 @@ private struct StatusPill: View {
         HStack(spacing: 5) {
             Image(systemName: notice.systemImage)
             Text(notice.text)
-                .font(.system(size: OverlayMetrics.labelFontSize + 1, weight: .medium))
+                .font(.system(size: settings.labelFontSize, weight: .medium))
                 .multilineTextAlignment(.leading)
         }
         .foregroundStyle(.white)

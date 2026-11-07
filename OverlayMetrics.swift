@@ -36,11 +36,12 @@ nonisolated enum OverlayMetrics {
     static let defaultLabelColor = Color.white
     static let defaultLabelEdge = LabelEdge.bottom
     static let defaultLabelAlignment = LabelAlignment.leading
-
+    /// Character name shown inside a frame.
+    static let defaultLabelFontSize: CGFloat = 9
     // MARK: - Legal ranges for those settings
 
     static let frameHeightRange: ClosedRange<CGFloat> = 40...300
-    static let framesPerRowRange: ClosedRange<Int> = 1...12
+    static let framesPerRowRange: ClosedRange<Int> = 1...6
     /// Never all the way to zero, or the strip becomes impossible to find again.
     static let opacityRange: ClosedRange<Double> = 0.05...1.0
 
@@ -63,8 +64,7 @@ nonisolated enum OverlayMetrics {
     /// How far the pointer has to travel before a press counts as a drag rather than a click.
     static let dragThreshold: CGFloat = 4
 
-    /// Character name shown inside a frame.
-    static let labelFontSize: CGFloat = 9
+    static let labelFontSizeRange: ClosedRange<CGFloat> = 8.0...20.0
 
     /// Status pills wrap instead of stretching the strip.
     static let statusMaxWidth: CGFloat = 220
