@@ -42,6 +42,8 @@ private struct OtherView: View {
 
     @Bindable private var settings = OverlaySettings.shared
 
+    @State private var isHoveringTrademark = false
+
     var body: some View {
         Form {
             LabeledContent("EVE Online") {
@@ -66,14 +68,12 @@ private struct OtherView: View {
 
                     HStack {
                         Button("Choose\u{2026}", action: choose)
+                        Button("Reset to default", action: resetToDefault)
+                            .disabled(isDefaultBundlePath)
                     }
                 }
             }
-            Text(
-                "EVE Online is a trademark of [Fenris Creations](https://fenris.com)."
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            trademarkNotice
 
             FullWidthDivider()
 
@@ -86,10 +86,32 @@ private struct OtherView: View {
         .clipped()
     }
 
+    /// Spelled out instead of a markdown link in `Text` so the link can pick up the hover
+    /// underline and the pointing-hand cursor, neither of which inline markdown gives us.
+    private var trademarkNotice: some View {
+        HStack(spacing: 0) {
+            Text("EVE Online is a trademark of ")
+            Link(destination: URL(string: "https://fenris.com")!) {
+                Text("Fenris Creations")
+                    .foregroundStyle(Color.accentColor)
+                    .underline(isHoveringTrademark)
+            }
+            .pointerStyle(.link)
+            .onHover { isHoveringTrademark = $0 }
+            Text(".")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
     /// Read through the setting rather than `EVEApplication.isInstalled` so the warning is
     /// recomputed when the path changes — a static has nothing for SwiftUI to observe.
     private var bundleExists: Bool {
         FileManager.default.fileExists(atPath: settings.eveBundlePath)
+    }
+
+    private var isDefaultBundlePath: Bool {
+        settings.eveBundlePath == OverlayMetrics.defaultEVEBundlePath
     }
 
     private func choose() {
@@ -106,6 +128,11 @@ private struct OtherView: View {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         settings.eveBundlePath = url.standardizedFileURL.path
+    }
+
+    /// Only the bundle path — the other settings keep whatever the user picked for them.
+    private func resetToDefault() {
+        settings.eveBundlePath = OverlayMetrics.defaultEVEBundlePath
     }
 }
 
@@ -452,6 +479,15 @@ enum SettingsWindow {
 #Preview("Permissions") {
     Form {
         PermissionSettings()
+    }
+    .labeledContentStyle(.boldLabel)
+    .scenePadding()
+    .frame(width: 460)
+}
+
+#Preview("Other") {
+    Form {
+        OtherView()
     }
     .labeledContentStyle(.boldLabel)
     .scenePadding()
