@@ -25,7 +25,7 @@ struct SettingsView: View {
                 PermissionSettings()
             }
             Tab("Other", systemImage: "info.circle") {
-                AboutView()
+                OtherView()
             }
         }
         .labeledContentStyle(.boldLabel)
@@ -37,7 +37,7 @@ struct SettingsView: View {
     }
 }
 
-private struct AboutView: View {
+private struct OtherView: View {
 
     @Bindable private var settings = OverlaySettings.shared
 
@@ -47,7 +47,7 @@ private struct AboutView: View {
                 Button("Reset to Defaults") { settings.resetToDefaults() }
                     .disabled(settings.isDefault)
             }
-            
+
         }
     }
 }
@@ -87,9 +87,9 @@ private struct StripSettings: View {
             .pickerStyle(.segmented)
 
             Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
-            
+
             FullWidthDivider()
-            
+
             LabeledContent("Dragging") {
                 Picker("Drag", selection: $settings.requiresCommandToDrag) {
                     VStack(alignment: .leading) {
@@ -171,14 +171,16 @@ private struct PermissionSettings: View {
                     title: "Screen Recording",
                     explanation: "Must be granted in order to record windows",
                     isGranted: hasScreenRecordingPermission,
-                    settingsURL: ScreenRecordingPermission.settingsURL, buttonText: "Open Screen Recording Settings",
+                    settingsURL: ScreenRecordingPermission.settingsURL,
+                    buttonText: "Open Screen Recording Settings",
                     request: { ScreenRecordingPermission.request() })
                 FullWidthDivider()
                 PermissionRow(
                     title: "Accessibility",
                     explanation: "Must be granted in order to activate EVE Online windows",
                     isGranted: hasAccessibilityPermission,
-                    settingsURL: AccessibilityPermission.settingsURL, buttonText: "Open Accessibility Settings",
+                    settingsURL: AccessibilityPermission.settingsURL,
+                    buttonText: "Open Accessibility Settings",
                     request: { AccessibilityPermission.request() })
 
             }
@@ -228,7 +230,7 @@ private struct PermissionRow: View {
 
             }
         }
-        
+
     }
 
     /// The prompt only ever appears once per install, so the pane is where the switch actually
