@@ -22,6 +22,9 @@ struct SettingsView: View {
             Tab("Labels", systemImage: "textformat") {
                 LabelSettings()
             }
+            Tab("Hotkeys", systemImage: "keyboard") {
+                LabelSettings()
+            }
             Tab("Permissions", systemImage: "lock.shield") {
                 PermissionSettings()
             }
@@ -474,6 +477,15 @@ enum SettingsWindow {
 
 #Preview("Settings") {
     SettingsView()
+}
+
+#Preview("Labels") {
+    Form {
+        LabelSettings()
+    }
+    .labeledContentStyle(.boldLabel)
+    .scenePadding()
+    .frame(width: 460)
 }
 
 #Preview("Permissions") {
