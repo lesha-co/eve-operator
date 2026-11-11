@@ -17,16 +17,17 @@ struct OverlayStripView: View {
         VStack(spacing: OverlayMetrics.spacing) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: OverlayMetrics.spacing) {
-                    ForEach(row) { window in
-                        if let session = model.sessions[window.id] {
+                    ForEach(row) { slot in
+                        if let session = model.sessions[slot.window.id] {
                             ClientFrameView(
-                                window: window,
+                                window: slot.window,
                                 session: session,
                                 settings: settings,
-                                isHovered: hoveredID == window.id,
+                                hotKeyLabel: hotKeyLabel(for: slot),
+                                isHovered: hoveredID == slot.window.id,
                                 menuItems: menuItems,
-                                onHover: { setHover($0, for: window.id) },
-                                onClick: { model.activate(window) })
+                                onHover: { setHover($0, for: slot.window.id) },
+                                onClick: { model.activate(slot.window) })
                         }
                     }
                 }
@@ -54,12 +55,21 @@ struct OverlayStripView: View {
         .task { await model.monitor() }
     }
 
-    /// Frames wrap once a row is full, so a fleet of clients stays on screen.
-    private var rows: [[EVEWindow]] {
+    /// Frames wrap once a row is full, so a fleet of clients stays on screen. Slot numbers
+    /// run across the whole strip, not across a row: they are positions in `model.windows`,
+    /// which is what a hot key resolves against.
+    private var rows: [[Slot]] {
         let perRow = max(1, settings.framesPerRow)
-        return stride(from: 0, to: model.windows.count, by: perRow).map { start in
-            Array(model.windows[start..<min(start + perRow, model.windows.count)])
+        let slots = model.windows.enumerated().map { Slot(number: $0.offset, window: $0.element) }
+        return stride(from: 0, to: slots.count, by: perRow).map { start in
+            Array(slots[start..<min(start + perRow, slots.count)])
         }
+    }
+
+    /// The key that raises this frame, when there is one and it is wanted in the label.
+    private func hotKeyLabel(for slot: Slot) -> String? {
+        guard settings.hotKeysEnabled, settings.showsHotKeyInLabel else { return nil }
+        return HotKeyMonitor.label(forSlot: slot.number, modifiers: settings.hotKeyModifiers)
     }
 
     private func setHover(_ hovering: Bool, for id: CGWindowID) {
@@ -106,6 +116,16 @@ struct OverlayStripView: View {
     }
 }
 
+// MARK: - Slot
+
+/// A client together with its position in the strip, which is also the hot key that raises it.
+private struct Slot: Identifiable {
+    let number: Int
+    let window: EVEWindow
+
+    var id: CGWindowID { window.id }
+}
+
 // MARK: - Notice
 
 private struct Notice: Identifiable {
@@ -121,6 +141,7 @@ private struct ClientFrameView: View {
     let window: EVEWindow
     let session: WindowCaptureSession
     let settings: OverlaySettings
+    let hotKeyLabel: String?
     let isHovered: Bool
     let menuItems: [MouseTracker.MenuEntry]
     let onHover: (Bool) -> Void
@@ -128,6 +149,12 @@ private struct ClientFrameView: View {
 
     private var opacity: Double {
         isHovered ? settings.hoverOpacity : settings.idleOpacity
+    }
+
+    private var label: String {
+        let name = window.characterName ?? window.displayName
+        guard let hotKeyLabel else { return name }
+        return "\(hotKeyLabel) · \(name)"
     }
 
     var body: some View {
@@ -144,7 +171,7 @@ private struct ClientFrameView: View {
                 )
                 .opacity(opacity)
 
-            Text(window.characterName ?? window.displayName)
+            Text(label)
                 .font(.system(size: settings.labelFontSize, weight: .medium))
                 .foregroundStyle(settings.labelColor)
                 .lineLimit(1)
