@@ -219,7 +219,7 @@ private struct LabelSettings: View {
     var body: some View {
         Form {
             Section {
-                ColorPicker("Color", selection: $settings.labelColor, supportsOpacity: true)
+                ColorPicker("Default color", selection: $settings.labelColor, supportsOpacity: true)
 
                 SliderRow(
                     title: "Font size",
@@ -239,6 +239,11 @@ private struct LabelSettings: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
+                }
+                LabeledContent("Per-character labels") {
+                    VStack(spacing: 6) {
+                        
+                    }
                 }
             }
         }
