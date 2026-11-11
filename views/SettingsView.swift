@@ -22,8 +22,8 @@ struct SettingsView: View {
             Tab("Labels", systemImage: "textformat") {
                 LabelSettings()
             }
-            Tab("Hotkeys", systemImage: "keyboard") {
-                LabelSettings()
+            Tab("Hot Keys", systemImage: "keyboard") {
+                HotKeySettings()
             }
             Tab("Permissions", systemImage: "lock.shield") {
                 PermissionSettings()
@@ -242,6 +242,150 @@ private struct LabelSettings: View {
                 }
             }
         }
+    }
+}
+
+private struct HotKeySettings: View {
+
+    @Bindable private var settings = OverlaySettings.shared
+
+    /// The live window list, so the table below says which character each key raises rather
+    /// than merely that it raises "the third one".
+    private var model = OperatorModel.shared
+
+    var body: some View {
+        Form {
+
+            Toggle("Raise previews with function keys", isOn: $settings.hotKeysEnabled)
+                .bold()
+
+            Group {
+                LabeledContent("Modifiers") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            ForEach(HotKeyModifiers.all, id: \.rawValue, content: modifierButton)
+                        }
+                        Text(modifierExplanation)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Toggle(
+                    "Only while an EVE client is frontmost",
+                    isOn: $settings.hotKeysOnlyWhileClientActive)
+
+                Toggle("Show the key in each label", isOn: $settings.showsHotKeyInLabel)
+
+                FullWidthDivider()
+
+                LabeledContent("Keys") { assignments }
+            }
+            // Everything below the first toggle is moot while the keys are off — but the
+            // toggle itself has to stay live, so the group is disabled rather than the form.
+            .disabled(!settings.hotKeysEnabled)
+
+            ForEach(warnings, id: \.self) { warning in
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .clipped()
+    }
+
+    // MARK: - Pieces
+
+    private func modifierButton(_ modifier: HotKeyModifiers) -> some View {
+        Toggle(
+            modifier.symbols,
+            isOn: Binding(
+                get: { settings.hotKeyModifiers.contains(modifier) },
+                set: { isOn in
+                    if isOn {
+                        settings.hotKeyModifiers.insert(modifier)
+                    } else {
+                        settings.hotKeyModifiers.remove(modifier)
+                    }
+                })
+        )
+        .toggleStyle(.button)
+    }
+
+    private var modifierExplanation: String {
+        settings.hotKeyModifiers.isEmpty
+            ? "No modifier: the bare function key, which EVE no longer sees while the key is taken."
+            : "EVE keeps the bare function keys; only the combination above is taken."
+    }
+
+    /// What each key raises at this moment. Positions are the strip's own order, so this is
+    /// also the answer to "which frame is third".
+    @ViewBuilder private var assignments: some View {
+        if model.windows.isEmpty {
+            Text("No clients are running.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(model.windows.enumerated()), id: \.element.id) { slot, window in
+                    HStack(spacing: 6) {
+                        Text(
+                            HotKeyMonitor.label(
+                                forSlot: slot, modifiers: settings.hotKeyModifiers) ?? "—"
+                        )
+                        .monospaced()
+                        .foregroundStyle(
+                            HotKeyMonitor.label(forSlot: slot, modifiers: settings.hotKeyModifiers)
+                                == nil ? .secondary : .primary)
+                        Text("→")
+                            .foregroundStyle(.secondary)
+                        Text(window.characterName ?? window.displayName)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+    }
+
+    /// Everything that can leave a key registered but silent. Each is a condition this app
+    /// cannot fix on the user's behalf, so saying so is all that is left.
+    private var warnings: [String] {
+        guard settings.hotKeysEnabled else { return [] }
+        var warnings: [String] = []
+
+        // A bare function key never reaches an application unless the keyboard is in "standard
+        // function keys" mode — otherwise F1 is brightness-down and the press is consumed long
+        // before any hot key is consulted. Read from the global domain, where the Keyboard
+        // pane writes it; absent means off, which is the factory setting.
+        if settings.hotKeyModifiers.isEmpty,
+            !UserDefaults.standard.bool(forKey: "com.apple.keyboard.fnState")
+        {
+            warnings.append(
+                "This keyboard sends F1…F12 as media keys. Turn on Keyboard → “Use F1, F2, etc. keys as standard function keys”, or hold fn."
+            )
+        }
+
+        // macOS keeps ⌃F1…⌃F8 for keyboard navigation and wins the dispatch, so control on its
+        // own is the one combination that registers and then never fires.
+        if settings.hotKeyModifiers == .control {
+            warnings.append(
+                "macOS reserves ⌃F1…⌃F8 for keyboard navigation and will keep them. Add another modifier."
+            )
+        }
+
+        if !model.unavailableHotKeySlots.isEmpty {
+            let keys = model.unavailableHotKeySlots.compactMap {
+                HotKeyMonitor.label(forSlot: $0, modifiers: settings.hotKeyModifiers)
+            }
+            warnings.append(
+                "Another application already owns \(keys.joined(separator: ", ")).")
+        }
+
+        return warnings
     }
 }
 
