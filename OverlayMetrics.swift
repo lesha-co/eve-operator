@@ -40,6 +40,16 @@ nonisolated enum OverlayMetrics {
     /// Character name shown inside a frame.
     static let defaultLabelFontSize: CGFloat = 9
 
+    /// Whether F1…F12 raise the preview in that position, and the modifiers they are
+    /// qualified with. No modifier by default: the keys are worth taking from EVE, which is
+    /// what `defaultHotKeysOnlyWhileClientActive` confines the theft to.
+    static let defaultHotKeysEnabled = true
+    static let defaultHotKeyModifiers: HotKeyModifiers = []
+    static let defaultHotKeysOnlyWhileClientActive = true
+
+    /// Whether the frame's label is prefixed with the key that raises it.
+    static let defaultShowsHotKeyInLabel = false
+
     /// Where the EVE Online launcher puts the Tranquility client.
     static let defaultEVEBundlePath =
         ("~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app" as NSString)
