@@ -22,7 +22,7 @@ struct eve_operatorApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
-    private let model = OperatorModel()
+    private let model = OperatorModel.shared
     private var panel: OverlayPanel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
