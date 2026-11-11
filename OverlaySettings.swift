@@ -100,6 +100,29 @@ final class OverlaySettings {
         didSet { defaults.set(labelAlignment.rawValue, forKey: Key.labelAlignment) }
     }
 
+    /// Whether F1…F12 raise the preview in that position.
+    var hotKeysEnabled: Bool {
+        didSet { defaults.set(hotKeysEnabled, forKey: Key.hotKeysEnabled) }
+    }
+
+    /// Modifiers those keys are qualified with; empty means the bare function key.
+    var hotKeyModifiers: HotKeyModifiers {
+        didSet { defaults.set(hotKeyModifiers.names, forKey: Key.hotKeyModifiers) }
+    }
+
+    /// When true the keys are only registered while an EVE client is frontmost, so F1 goes on
+    /// meaning whatever it means everywhere else.
+    var hotKeysOnlyWhileClientActive: Bool {
+        didSet {
+            defaults.set(hotKeysOnlyWhileClientActive, forKey: Key.hotKeysOnlyWhileClientActive)
+        }
+    }
+
+    /// Whether each frame's label is prefixed with the key that raises it.
+    var showsHotKeyInLabel: Bool {
+        didSet { defaults.set(showsHotKeyInLabel, forKey: Key.showsHotKeyInLabel) }
+    }
+
     /// Location of the EVE Online client bundle — see `EVEApplication`. Editable because the
     /// launcher's install directory is configurable, and because Singularity and other test
     /// shards sit beside `tq` in their own bundles.
@@ -151,6 +174,18 @@ final class OverlaySettings {
                 Double(
                     OverlayMetrics.labelFontSizeRange.lowerBound)...Double(
                     OverlayMetrics.labelFontSizeRange.upperBound))
+        hotKeysEnabled =
+            defaults.object(forKey: Key.hotKeysEnabled) as? Bool
+            ?? OverlayMetrics.defaultHotKeysEnabled
+        hotKeyModifiers =
+            defaults.string(forKey: Key.hotKeyModifiers).map(HotKeyModifiers.init(names:))
+            ?? OverlayMetrics.defaultHotKeyModifiers
+        hotKeysOnlyWhileClientActive =
+            defaults.object(forKey: Key.hotKeysOnlyWhileClientActive) as? Bool
+            ?? OverlayMetrics.defaultHotKeysOnlyWhileClientActive
+        showsHotKeyInLabel =
+            defaults.object(forKey: Key.showsHotKeyInLabel) as? Bool
+            ?? OverlayMetrics.defaultShowsHotKeyInLabel
         eveBundlePath = Self.path(
             defaults, Key.eveBundlePath, or: OverlayMetrics.defaultEVEBundlePath)
     }
@@ -166,6 +201,10 @@ final class OverlaySettings {
         labelEdge = OverlayMetrics.defaultLabelEdge
         labelAlignment = OverlayMetrics.defaultLabelAlignment
         labelFontSize = OverlayMetrics.defaultLabelFontSize
+        hotKeysEnabled = OverlayMetrics.defaultHotKeysEnabled
+        hotKeyModifiers = OverlayMetrics.defaultHotKeyModifiers
+        hotKeysOnlyWhileClientActive = OverlayMetrics.defaultHotKeysOnlyWhileClientActive
+        showsHotKeyInLabel = OverlayMetrics.defaultShowsHotKeyInLabel
         eveBundlePath = OverlayMetrics.defaultEVEBundlePath
     }
 
@@ -179,6 +218,11 @@ final class OverlaySettings {
             && labelEdge == OverlayMetrics.defaultLabelEdge
             && labelAlignment == OverlayMetrics.defaultLabelAlignment
             && labelFontSize == OverlayMetrics.defaultLabelFontSize
+            && hotKeysEnabled == OverlayMetrics.defaultHotKeysEnabled
+            && hotKeyModifiers == OverlayMetrics.defaultHotKeyModifiers
+            && hotKeysOnlyWhileClientActive
+                == OverlayMetrics.defaultHotKeysOnlyWhileClientActive
+            && showsHotKeyInLabel == OverlayMetrics.defaultShowsHotKeyInLabel
             && eveBundlePath == OverlayMetrics.defaultEVEBundlePath
             // Compared through the stored form: a colour round-tripped via sRGB is never
             // `==` to the catalogue colour it came from, even when it looks identical.
@@ -262,6 +306,10 @@ final class OverlaySettings {
         static let labelColor = "overlay.labelColor"
         static let labelEdge = "overlay.labelEdge"
         static let labelAlignment = "overlay.labelAlignment"
+        static let hotKeysEnabled = "hotkeys.enabled"
+        static let hotKeyModifiers = "hotkeys.modifiers"
+        static let hotKeysOnlyWhileClientActive = "hotkeys.onlyWhileClientActive"
+        static let showsHotKeyInLabel = "hotkeys.showInLabel"
         static let eveBundlePath = "eve.bundlePath"
     }
 }
