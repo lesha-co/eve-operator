@@ -13,6 +13,10 @@ import ScreenCaptureKit
 @Observable
 final class OperatorModel {
 
+    /// The strip and the settings pane read the same instance: the hot-key tab lists what each
+    /// key currently raises, which is a question only the live window list can answer.
+    static let shared = OperatorModel()
+
     private(set) var windows: [EVEWindow] = []
     /// One live stream per discovered window, keyed by `CGWindowID`.
     private(set) var sessions: [CGWindowID: WindowCaptureSession] = [:]
@@ -22,7 +26,14 @@ final class OperatorModel {
 
     var activationError: String?
 
+    /// Positions whose hot key another application had already claimed.
+    private(set) var unavailableHotKeySlots: [Int] = []
+
     private let settings = OverlaySettings.shared
+
+    @ObservationIgnored private lazy var hotKeys = HotKeyMonitor { [weak self] slot in
+        self?.activateSlot(slot)
+    }
 
     private static let refreshInterval = Duration.milliseconds(200)
 
@@ -57,11 +68,18 @@ final class OperatorModel {
         }
         guard hasScreenRecordingPermission else {
             windows = []
+            syncHotKeys()
             await stopAllSessions()
             return
         }
 
-        windows = WindowDiscovery.currentWindows()
+        // Assigned only on a real change: `@Observable` tracks the write, not the value, so
+        // assigning an identical list five times a second would redraw everything observing it
+        // five times a second.
+        let found = WindowDiscovery.currentWindows()
+        if found != windows { windows = found }
+
+        syncHotKeys()
         await syncSessions(with: windows)
     }
 
@@ -131,7 +149,35 @@ final class OperatorModel {
         }
     }
 
+    /// Raises the client in position `slot` of the strip, counting from zero. Out-of-range
+    /// slots are ignored: a key can outlive the client it was registered for by one poll.
+    func activateSlot(_ slot: Int) {
+        guard windows.indices.contains(slot) else { return }
+        activate(windows[slot])
+    }
+
     func requestAccessibilityPermission() {
         AccessibilityPermission.request()
+    }
+
+    // MARK: - Hot keys
+
+    /// Keeps the registered keys in step with what is on screen. Driven from the poll rather
+    /// than from observation so that the window list, the frontmost application and the
+    /// settings are all read at one consistent moment; `HotKeyMonitor.sync` returns
+    /// immediately when nothing has changed, which is every pass but a handful.
+    private func syncHotKeys() {
+        // Holding the keys only while a client is in front is what makes an unmodified
+        // function key tolerable: F1 goes on belonging to every other application, and is
+        // only taken for as long as the press could have been meant for a client.
+        let withheld =
+            settings.hotKeysOnlyWhileClientActive && !windows.contains(where: \.isActive)
+        let slots = settings.hotKeysEnabled && !withheld ? windows.count : 0
+
+        hotKeys.sync(slotCount: slots, modifiers: settings.hotKeyModifiers)
+
+        if hotKeys.unavailableSlots != unavailableHotKeySlots {
+            unavailableHotKeySlots = hotKeys.unavailableSlots
+        }
     }
 }
