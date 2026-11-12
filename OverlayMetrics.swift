@@ -106,6 +106,12 @@ nonisolated enum OverlayMetrics {
     /// Status pills carry text, so they ignore the configured opacity once it drops too low.
     static let statusMinimumOpacity: Double = 0.55
 
+    /// Labels carry text too, and the same bargain applies — except a caption over a busy
+    /// client is harder to read than a pill on its own dark background, so the floor sits
+    /// much higher. High enough to read as opaque, low enough that the hover fade still
+    /// shows.
+    static let labelMinimumOpacity: Double = 0.9
+
     static let hoverAnimationDuration: Double = 0.12
 
     // MARK: - Helpers
@@ -117,6 +123,10 @@ nonisolated enum OverlayMetrics {
 
     static func statusOpacity(_ opacity: Double) -> Double {
         max(opacity, statusMinimumOpacity)
+    }
+
+    static func labelOpacity(_ opacity: Double) -> Double {
+        max(opacity, labelMinimumOpacity)
     }
 
     static func clamp<Value: Comparable>(_ value: Value, to range: ClosedRange<Value>) -> Value {

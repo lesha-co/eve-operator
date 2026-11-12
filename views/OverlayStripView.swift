@@ -155,6 +155,12 @@ private struct ClientFrameView: View {
         isHovered ? settings.hoverOpacity : settings.idleOpacity
     }
 
+    /// The caption is the one part of a frame that has to stay readable, so it only follows
+    /// the configured opacity down to a floor.
+    private var labelOpacity: Double {
+        OverlayMetrics.labelOpacity(opacity)
+    }
+
     private var label: String {
         let name = window.characterName ?? window.displayName
         guard let hotKeyLabel else { return name }
@@ -183,7 +189,7 @@ private struct ClientFrameView: View {
                 .padding(.vertical, 1)
                 .background(.black.opacity(0.5), in: Capsule())
                 .padding(4)
-                .opacity(opacity)
+                .opacity(labelOpacity)
         }
         .frame(
             width: OverlayMetrics.frameWidth(
