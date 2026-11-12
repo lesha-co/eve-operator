@@ -63,9 +63,6 @@ nonisolated enum OverlayMetrics {
     /// client is actually using, so this is a starting point and not a reading.
     static let defaultEVESettingsProfile = EVESettingsLocation.defaultProfile
 
-    /// Whether every label is one colour or each character gets its own.
-    static let defaultLabelColorSource = LabelColorSource.fixed
-
     /// Which of a custom EVE theme's four colours a mirrored label takes — see
     /// `docs/eve-settings-files.md` §6. Fixed rather than chosen: `tint` is commonly
     /// `#ff000000` and would be invisible on a dark preview, and the other two are not worth

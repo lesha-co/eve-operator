@@ -14,8 +14,7 @@ enum LabelColors {
     /// Why a label ended up the colour it did — the settings pane shows this, the strip
     /// only uses `color`.
     enum Source: Equatable {
-        /// The global `labelColor`, either because per-character colours are off or because
-        /// this character has no entry.
+        /// The global `labelColor`, because this character has no entry of its own.
         case global
         case custom
         /// Mirrored from EVE, showing the colour in EVE's own six-digit share form.
@@ -37,7 +36,7 @@ enum LabelColors {
         let settings = OverlaySettings.shared
         let fallback = Resolution(color: settings.labelColor, source: .global)
 
-        guard settings.labelColorSource == .perCharacter, let characterName else { return fallback }
+        guard let characterName else { return fallback }
 
         switch settings.labelColorSetting(for: characterName) {
         case .inherited:

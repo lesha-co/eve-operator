@@ -43,20 +43,6 @@ nonisolated enum LabelAlignment: String, CaseIterable, Identifiable {
     }
 }
 
-/// Whether every frame's label is drawn in one colour, or each character gets its own.
-nonisolated enum LabelColorSource: String, CaseIterable, Identifiable {
-    case fixed, perCharacter
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .fixed: return "One color for all"
-        case .perCharacter: return "Per character"
-        }
-    }
-}
-
 /// Where one character's label colour comes from. The stored form is a plain string so the
 /// plist stays legible to `defaults read`, and so an unrecognized value simply means
 /// "inherited" rather than needing a migration.
@@ -167,10 +153,6 @@ final class OverlaySettings {
         didSet { defaults.set(eveSettingsProfile, forKey: Key.eveSettingsProfile) }
     }
 
-    var labelColorSource: LabelColorSource {
-        didSet { defaults.set(labelColorSource.rawValue, forKey: Key.labelColorSource) }
-    }
-
     /// Keyed by character name — what a window title gives us, and what survives a failed
     /// ESI lookup. Values are `mirror` or `#RRGGBBAA`; an absent or unparseable entry means
     /// the character inherits `labelColor`. Read and written through
@@ -244,8 +226,6 @@ final class OverlaySettings {
             defaults.string(forKey: Key.eveSettingsProfile).flatMap {
                 $0.isEmpty ? nil : $0
             } ?? OverlayMetrics.defaultEVESettingsProfile
-        labelColorSource = Self.option(
-            defaults, Key.labelColorSource, or: OverlayMetrics.defaultLabelColorSource)
         characterLabelColors =
             defaults.dictionary(forKey: Key.characterLabelColors) as? [String: String] ?? [:]
     }
@@ -291,7 +271,6 @@ final class OverlaySettings {
         eveBundlePath = OverlayMetrics.defaultEVEBundlePath
         eveSettingsFolderPath = OverlayMetrics.defaultEVESettingsFolderPath
         eveSettingsProfile = OverlayMetrics.defaultEVESettingsProfile
-        labelColorSource = OverlayMetrics.defaultLabelColorSource
         characterLabelColors = [:]
     }
 
@@ -315,7 +294,6 @@ final class OverlaySettings {
             // a detected folder is a configuration the user has, not a default.
             && eveSettingsFolderPath == OverlayMetrics.defaultEVESettingsFolderPath
             && eveSettingsProfile == OverlayMetrics.defaultEVESettingsProfile
-            && labelColorSource == OverlayMetrics.defaultLabelColorSource
             && characterLabelColors.isEmpty
             // Compared through the stored form: a colour round-tripped via sRGB is never
             // `==` to the catalogue colour it came from, even when it looks identical.
@@ -413,7 +391,6 @@ final class OverlaySettings {
         static let eveBundlePath = "eve.bundlePath"
         static let eveSettingsFolderPath = "eve.settingsFolderPath"
         static let eveSettingsProfile = "eve.settingsProfile"
-        static let labelColorSource = "labels.colorSource"
 
         static let characterLabelColors = "labels.perCharacter"
     }

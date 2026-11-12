@@ -20,17 +20,6 @@ struct LabelSettings: View {
         Form {
             Section {
 
-                LabeledContent("Character colors") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Picker("Source", selection: $settings.labelColorSource) {
-                            ForEach(LabelColorSource.allCases) { Text($0.title).tag($0) }
-                        }
-                        .pickerStyle(.radioGroup)
-                        .labelsHidden()
-
-                    }
-                }
-
                 LabeledContent("Default color") {
                     ColorPicker(
                         "Default color", selection: $settings.labelColor, supportsOpacity: true
@@ -38,7 +27,7 @@ struct LabelSettings: View {
                 }
 
                 LabeledContent("Per-character") {
-                    perCharacter.disabled(settings.labelColorSource != .perCharacter)
+                    perCharacter
                 }
 
                 FullWidthDivider()
@@ -78,12 +67,12 @@ struct LabelSettings: View {
             }
 
             HStack {
-                Button("Mirror all") {
+                Button("Set to mirror") {
                     for entry in roster.characters {
                         settings.setLabelColor(.mirrored, for: entry.name)
                     }
                 }
-                Button("Reset all") { settings.clearCharacterLabelColors() }
+                Button("Set to default") { settings.clearCharacterLabelColors() }
                     .disabled(settings.characterLabelColors.isEmpty)
 
                 // The only thing that re-reads EVE's folder after launch. Deliberate: the files
