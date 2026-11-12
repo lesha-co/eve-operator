@@ -79,6 +79,10 @@ final class OperatorModel {
         let found = WindowDiscovery.currentWindows()
         if found != windows { windows = found }
 
+        // Returns on a set comparison unless a client has actually come or gone; the roster
+        // is how the Labels tab knows about characters that are not currently logged in.
+        CharacterRoster.shared.note(windows)
+
         syncHotKeys()
         await syncSessions(with: windows)
     }

@@ -55,6 +55,23 @@ nonisolated enum OverlayMetrics {
         ("~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app" as NSString)
         .expandingTildeInPath
 
+    /// Empty means "not configured". The app autodetects once on first launch rather than
+    /// shipping a guess, because the folder's name is derived from wherever EVE was installed.
+    static let defaultEVESettingsFolderPath = ""
+
+    /// The profile EVE creates on a fresh install. Nothing on disk records which one the
+    /// client is actually using, so this is a starting point and not a reading.
+    static let defaultEVESettingsProfile = EVESettingsLocation.defaultProfile
+
+    /// Whether every label is one colour or each character gets its own.
+    static let defaultLabelColorSource = LabelColorSource.fixed
+
+    /// Which of a custom EVE theme's four colours a mirrored label takes — see
+    /// `docs/eve-settings-files.md` §6. Fixed rather than chosen: `tint` is commonly
+    /// `#ff000000` and would be invisible on a dark preview, and the other two are not worth
+    /// a dial. The name is the key EVE writes inside a theme object.
+    static let defaultMirroredThemeChannel = "focus"
+
     // MARK: - Legal ranges for those settings
 
     static let frameHeightRange: ClosedRange<CGFloat> = 40...300

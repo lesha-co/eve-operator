@@ -7,9 +7,7 @@
 //
 
 import AppKit
-import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct SettingsView: View {
 
@@ -38,104 +36,6 @@ struct SettingsView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background { WindowConfigurator { SettingsWindow.adopt($0) } }
 
-    }
-}
-
-private struct OtherView: View {
-
-    @Bindable private var settings = OverlaySettings.shared
-
-    @State private var isHoveringTrademark = false
-
-    var body: some View {
-        Form {
-            LabeledContent("EVE Online") {
-                VStack(alignment: .leading, spacing: 6) {
-                    // Middle-truncated: the install lives several directories deep and it is
-                    // the tail — the shard, `tq` or otherwise — that tells two apart.
-                    Text(settings.eveBundlePath)
-                        .font(.caption)
-
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                        .help(settings.eveBundlePath)
-
-                    if !bundleExists {
-                        Label(
-                            "No application at this path",
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                    }
-
-                    HStack {
-                        Button("Choose\u{2026}", action: choose)
-                        Button("Reset to default", action: resetToDefault)
-                            .disabled(isDefaultBundlePath)
-                    }
-                }
-            }
-            trademarkNotice
-
-            FullWidthDivider()
-
-            LabeledContent("Defaults") {
-                Button("Reset to Defaults") { settings.resetToDefaults() }
-                    .disabled(settings.isDefault)
-            }
-
-        }
-        .clipped()
-    }
-
-    /// Spelled out instead of a markdown link in `Text` so the link can pick up the hover
-    /// underline and the pointing-hand cursor, neither of which inline markdown gives us.
-    private var trademarkNotice: some View {
-        HStack(spacing: 0) {
-            Text("EVE Online is a trademark of ")
-            Link(destination: URL(string: "https://fenris.com")!) {
-                Text("Fenris Creations")
-                    .foregroundStyle(Color.accentColor)
-                    .underline(isHoveringTrademark)
-            }
-            .pointerStyle(.link)
-            .onHover { isHoveringTrademark = $0 }
-            Text(".")
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-
-    /// Read through the setting rather than `EVEApplication.isInstalled` so the warning is
-    /// recomputed when the path changes — a static has nothing for SwiftUI to observe.
-    private var bundleExists: Bool {
-        FileManager.default.fileExists(atPath: settings.eveBundlePath)
-    }
-
-    private var isDefaultBundlePath: Bool {
-        settings.eveBundlePath == OverlayMetrics.defaultEVEBundlePath
-    }
-
-    private func choose() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.application]
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.message = "Choose the EVE Online client."
-        panel.prompt = "Choose"
-        // The stock install is inside `~/Library`, which the panel hides unless it is already
-        // looking at it, so it opens on the directory holding the current choice.
-        panel.directoryURL = URL(fileURLWithPath: settings.eveBundlePath)
-            .deletingLastPathComponent()
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        settings.eveBundlePath = url.standardizedFileURL.path
-    }
-
-    /// Only the bundle path — the other settings keep whatever the user picked for them.
-    private func resetToDefault() {
-        settings.eveBundlePath = OverlayMetrics.defaultEVEBundlePath
     }
 }
 
@@ -209,44 +109,6 @@ private struct StripSettings: View {
 
     private nonisolated func percent(_ value: Double) -> String {
         "\(Int((value * 100).rounded()))%"
-    }
-}
-
-private struct LabelSettings: View {
-
-    @Bindable private var settings = OverlaySettings.shared
-
-    var body: some View {
-        Form {
-            Section {
-                ColorPicker("Default color", selection: $settings.labelColor, supportsOpacity: true)
-
-                SliderRow(
-                    title: "Font size",
-                    value: $settings.labelFontSize,
-                    range: OverlayMetrics.labelFontSizeRange,
-                    step: 1.0,
-                    format: { "\(Int($0.rounded())) pt" })
-
-                LabeledContent("Position") {
-                    VStack(spacing: 6) {
-                        Picker("Edge", selection: $settings.labelEdge) {
-                            ForEach(LabelEdge.allCases) { Text($0.title).tag($0) }
-                        }
-                        Picker("Alignment", selection: $settings.labelAlignment) {
-                            ForEach(LabelAlignment.allCases) { Text($0.title).tag($0) }
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
-                LabeledContent("Per-character labels") {
-                    VStack(spacing: 6) {
-                        
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -394,90 +256,6 @@ private struct HotKeySettings: View {
     }
 }
 
-private struct PermissionSettings: View {
-
-    @State private var hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
-    @State private var hasAccessibilityPermission = AccessibilityPermission.isGranted
-
-    var body: some View {
-        Form {
-            Section {
-
-                PermissionRow(
-                    title: "Screen Recording",
-                    explanation: "Must be granted in order to record windows",
-                    isGranted: hasScreenRecordingPermission,
-                    settingsURL: ScreenRecordingPermission.settingsURL,
-                    buttonText: "Open Screen Recording Settings",
-                    request: { ScreenRecordingPermission.request() })
-                FullWidthDivider()
-                PermissionRow(
-                    title: "Accessibility",
-                    explanation: "Must be granted in order to activate EVE Online windows",
-                    isGranted: hasAccessibilityPermission,
-                    settingsURL: AccessibilityPermission.settingsURL,
-                    buttonText: "Open Accessibility Settings",
-                    request: { AccessibilityPermission.request() })
-
-            }
-
-        }
-        .clipped()
-        .onAppear(perform: refresh)
-        // macOS posts nothing when a TCC decision changes, and polling for one is not worth it:
-        // granting happens over in System Settings, so coming back is the only moment the answer
-        // can have changed.
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-        ) { _ in
-            refresh()
-        }
-    }
-
-    private func refresh() {
-        hasScreenRecordingPermission = ScreenRecordingPermission.isGranted
-        hasAccessibilityPermission = AccessibilityPermission.isGranted
-    }
-}
-
-// MARK: - Permissions
-
-/// Where one TCC permission stands, and a way to go and fix it.
-private struct PermissionRow: View {
-    let title: String
-    let explanation: String
-    let isGranted: Bool
-    let settingsURL: URL
-    let buttonText: String
-    let request: @MainActor () -> Bool
-
-    var body: some View {
-        LabeledContent(title) {
-            VStack(alignment: .leading) {
-                Label(
-                    isGranted ? "Granted" : "Not granted",
-                    systemImage: isGranted
-                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(isGranted ? Color.green : Color.orange)
-
-                Button(buttonText, action: grant)
-                Text(explanation).font(.caption)
-
-            }
-        }
-
-    }
-
-    /// The prompt only ever appears once per install, so the pane is where the switch actually
-    /// is — but asking first also registers eve-operator in that pane's list, which is the
-    /// difference between flicking a switch and having to add the app by hand.
-    private func grant() {
-        _ = request()
-        NSWorkspace.shared.open(settingsURL)
-    }
-}
-
 // MARK: - Styling
 
 /// Bolds every `LabeledContent` label in the pane, so the label column reads as the heading it
@@ -488,7 +266,7 @@ private struct PermissionRow: View {
 ///
 /// Controls that render their own label — `ColorPicker`, `Toggle` — are not `LabeledContent` and
 /// are not reached by this; they bold their label at the call site.
-private struct BoldLabelStyle: LabeledContentStyle {
+struct BoldLabelStyle: LabeledContentStyle {
     func makeBody(configuration: Configuration) -> some View {
         LabeledContent {
             configuration.content
@@ -499,7 +277,9 @@ private struct BoldLabelStyle: LabeledContentStyle {
 }
 
 extension LabeledContentStyle where Self == BoldLabelStyle {
-    fileprivate static var boldLabel: Self { Self() }
+    /// Not fileprivate: the tabs live in their own files and their previews want the same
+    /// styling the real pane applies.
+    static var boldLabel: Self { Self() }
 }
 
 // MARK: - Rows
@@ -509,13 +289,15 @@ extension LabeledContentStyle where Self == BoldLabelStyle {
 /// halfway across. Nothing in the grid vocabulary (`gridCellColumns`, `Section` headers,
 /// `frame(maxWidth:)`) reaches back over the label column, so the rule is simply drawn wider
 /// than the row and the enclosing `Form` is asked to `.clipped()` the excess.
-private struct FullWidthDivider: View {
+/// Also used by the Labels tab, which lives in its own file.
+struct FullWidthDivider: View {
     var body: some View {
         Divider().padding(.horizontal, -1000).padding(.vertical, 8)
     }
 }
 
-private struct SliderRow<Value: BinaryFloatingPoint>: View where Value.Stride: BinaryFloatingPoint {
+/// Also used by the Labels tab, which lives in its own file.
+struct SliderRow<Value: BinaryFloatingPoint>: View where Value.Stride: BinaryFloatingPoint {
     let title: String
     @Binding var value: Value
     let range: ClosedRange<Value>
@@ -626,31 +408,4 @@ enum SettingsWindow {
 
 #Preview("Settings") {
     SettingsView()
-}
-
-#Preview("Labels") {
-    Form {
-        LabelSettings()
-    }
-    .labeledContentStyle(.boldLabel)
-    .scenePadding()
-    .frame(width: 460)
-}
-
-#Preview("Permissions") {
-    Form {
-        PermissionSettings()
-    }
-    .labeledContentStyle(.boldLabel)
-    .scenePadding()
-    .frame(width: 460)
-}
-
-#Preview("Other") {
-    Form {
-        OtherView()
-    }
-    .labeledContentStyle(.boldLabel)
-    .scenePadding()
-    .frame(width: 460)
 }

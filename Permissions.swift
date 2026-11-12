@@ -34,3 +34,12 @@ enum AccessibilityPermission {
     static let settingsURL = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 }
+
+/// Not required in the normal case: this app is unsandboxed, and another application's folder
+/// under `~/Library/Application Support` is not TCC-protected — reading EVE's settings needs no
+/// permission at all. There is nothing to request and no prompt to raise, so this is only a pane
+/// to point at, and only worth pointing at once the filesystem has actually refused.
+enum FullDiskAccess {
+    static let settingsURL = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
+}

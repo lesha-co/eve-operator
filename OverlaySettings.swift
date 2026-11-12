@@ -43,6 +43,31 @@ nonisolated enum LabelAlignment: String, CaseIterable, Identifiable {
     }
 }
 
+/// Whether every frame's label is drawn in one colour, or each character gets its own.
+nonisolated enum LabelColorSource: String, CaseIterable, Identifiable {
+    case fixed, perCharacter
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fixed: return "One color for all"
+        case .perCharacter: return "Per character"
+        }
+    }
+}
+
+/// Where one character's label colour comes from. The stored form is a plain string so the
+/// plist stays legible to `defaults read`, and so an unrecognized value simply means
+/// "inherited" rather than needing a migration.
+nonisolated enum CharacterLabelColor: Equatable {
+    /// No entry: use the global `labelColor`.
+    case inherited
+    /// Take it from this character's in-game UI theme.
+    case mirrored
+    case fixed(Color)
+}
+
 @MainActor
 @Observable
 final class OverlaySettings {
@@ -130,6 +155,30 @@ final class OverlaySettings {
         didSet { defaults.set(eveBundlePath, forKey: Key.eveBundlePath) }
     }
 
+    /// Folder holding EVE's local settings — the one with `settings_Default` in it. Empty
+    /// until autodetected or chosen; see `EVESettingsLocation`.
+    var eveSettingsFolderPath: String {
+        didSet { defaults.set(eveSettingsFolderPath, forKey: Key.eveSettingsFolderPath) }
+    }
+
+    /// Which `settings_<Profile>` to read. Nothing on disk says which one EVE is using, so
+    /// this is the user's answer rather than a detected one.
+    var eveSettingsProfile: String {
+        didSet { defaults.set(eveSettingsProfile, forKey: Key.eveSettingsProfile) }
+    }
+
+    var labelColorSource: LabelColorSource {
+        didSet { defaults.set(labelColorSource.rawValue, forKey: Key.labelColorSource) }
+    }
+
+    /// Keyed by character name — what a window title gives us, and what survives a failed
+    /// ESI lookup. Values are `mirror` or `#RRGGBBAA`; an absent or unparseable entry means
+    /// the character inherits `labelColor`. Read and written through
+    /// `labelColorSetting(for:)` rather than directly.
+    private(set) var characterLabelColors: [String: String] {
+        didSet { defaults.set(characterLabelColors, forKey: Key.characterLabelColors) }
+    }
+
     /// The two label settings as the single alignment the frame's `ZStack` needs.
     var labelPlacement: Alignment {
         Alignment(horizontal: labelAlignment.horizontal, vertical: labelEdge.vertical)
@@ -188,7 +237,41 @@ final class OverlaySettings {
             ?? OverlayMetrics.defaultShowsHotKeyInLabel
         eveBundlePath = Self.path(
             defaults, Key.eveBundlePath, or: OverlayMetrics.defaultEVEBundlePath)
+        eveSettingsFolderPath = Self.path(
+            defaults, Key.eveSettingsFolderPath,
+            or: OverlayMetrics.defaultEVESettingsFolderPath)
+        eveSettingsProfile =
+            defaults.string(forKey: Key.eveSettingsProfile).flatMap {
+                $0.isEmpty ? nil : $0
+            } ?? OverlayMetrics.defaultEVESettingsProfile
+        labelColorSource = Self.option(
+            defaults, Key.labelColorSource, or: OverlayMetrics.defaultLabelColorSource)
+        characterLabelColors =
+            defaults.dictionary(forKey: Key.characterLabelColors) as? [String: String] ?? [:]
     }
+
+    // MARK: - Per-character colours
+
+    func labelColorSetting(for character: String) -> CharacterLabelColor {
+        guard let raw = characterLabelColors[character] else { return .inherited }
+        if raw == Self.mirrorToken { return .mirrored }
+        guard let color = Self.color(fromHex: raw) else { return .inherited }
+        return .fixed(color)
+    }
+
+    func setLabelColor(_ setting: CharacterLabelColor, for character: String) {
+        switch setting {
+        case .inherited: characterLabelColors[character] = nil
+        case .mirrored: characterLabelColors[character] = Self.mirrorToken
+        case .fixed(let color): characterLabelColors[character] = Self.hex(from: color)
+        }
+    }
+
+    func clearCharacterLabelColors() {
+        characterLabelColors = [:]
+    }
+
+    private static let mirrorToken = "mirror"
 
     func resetToDefaults() {
         idleOpacity = OverlayMetrics.defaultIdleOpacity
@@ -206,6 +289,10 @@ final class OverlaySettings {
         hotKeysOnlyWhileClientActive = OverlayMetrics.defaultHotKeysOnlyWhileClientActive
         showsHotKeyInLabel = OverlayMetrics.defaultShowsHotKeyInLabel
         eveBundlePath = OverlayMetrics.defaultEVEBundlePath
+        eveSettingsFolderPath = OverlayMetrics.defaultEVESettingsFolderPath
+        eveSettingsProfile = OverlayMetrics.defaultEVESettingsProfile
+        labelColorSource = OverlayMetrics.defaultLabelColorSource
+        characterLabelColors = [:]
     }
 
     var isDefault: Bool {
@@ -224,6 +311,12 @@ final class OverlaySettings {
                 == OverlayMetrics.defaultHotKeysOnlyWhileClientActive
             && showsHotKeyInLabel == OverlayMetrics.defaultShowsHotKeyInLabel
             && eveBundlePath == OverlayMetrics.defaultEVEBundlePath
+            // Compared against empty rather than against whatever autodetect last produced:
+            // a detected folder is a configuration the user has, not a default.
+            && eveSettingsFolderPath == OverlayMetrics.defaultEVESettingsFolderPath
+            && eveSettingsProfile == OverlayMetrics.defaultEVESettingsProfile
+            && labelColorSource == OverlayMetrics.defaultLabelColorSource
+            && characterLabelColors.isEmpty
             // Compared through the stored form: a colour round-tripped via sRGB is never
             // `==` to the catalogue colour it came from, even when it looks identical.
             && Self.hex(from: labelColor) == Self.hex(from: OverlayMetrics.defaultLabelColor)
@@ -271,7 +364,7 @@ final class OverlaySettings {
     // MARK: - Colour storage
 
     /// Written as #RRGGBBAA so the plist stays legible and survives a colour-space change.
-    private static func hex(from color: Color) -> String {
+    static func hex(from color: Color) -> String {
         guard let srgb = NSColor(color).usingColorSpace(.sRGB) else { return "#FFFFFFFF" }
         let channels = [
             srgb.redComponent, srgb.greenComponent, srgb.blueComponent, srgb.alphaComponent,
@@ -284,9 +377,16 @@ final class OverlaySettings {
 
     private static func color(_ defaults: UserDefaults, _ key: String, or fallback: Color) -> Color
     {
-        guard var raw = defaults.string(forKey: key) else { return fallback }
+        guard let raw = defaults.string(forKey: key) else { return fallback }
+        return color(fromHex: raw) ?? fallback
+    }
+
+    /// `#RRGGBBAA`, the form this app stores colours in. Note EVE's own theme colours are
+    /// `#AARRGGBB` — alpha first — and are parsed in `EVETheme`, not here.
+    static func color(fromHex hex: String) -> Color? {
+        var raw = hex
         if raw.hasPrefix("#") { raw.removeFirst() }
-        guard raw.count == 8, let packed = UInt32(raw, radix: 16) else { return fallback }
+        guard raw.count == 8, let packed = UInt32(raw, radix: 16) else { return nil }
         return Color(
             .sRGB,
             red: Double((packed >> 24) & 0xFF) / 255,
@@ -311,5 +411,10 @@ final class OverlaySettings {
         static let hotKeysOnlyWhileClientActive = "hotkeys.onlyWhileClientActive"
         static let showsHotKeyInLabel = "hotkeys.showInLabel"
         static let eveBundlePath = "eve.bundlePath"
+        static let eveSettingsFolderPath = "eve.settingsFolderPath"
+        static let eveSettingsProfile = "eve.settingsProfile"
+        static let labelColorSource = "labels.colorSource"
+
+        static let characterLabelColors = "labels.perCharacter"
     }
 }

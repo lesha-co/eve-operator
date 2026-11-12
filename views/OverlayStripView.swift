@@ -23,6 +23,7 @@ struct OverlayStripView: View {
                                 window: slot.window,
                                 session: session,
                                 settings: settings,
+                                labelColor: LabelColors.color(for: slot.window),
                                 hotKeyLabel: hotKeyLabel(for: slot),
                                 isHovered: hoveredID == slot.window.id,
                                 menuItems: menuItems,
@@ -141,6 +142,9 @@ private struct ClientFrameView: View {
     let window: EVEWindow
     let session: WindowCaptureSession
     let settings: OverlaySettings
+    /// Resolved by `OverlayStripView` rather than looked up here: this view is rebuilt for
+    /// every capture frame and has no business doing dictionary lookups.
+    let labelColor: Color
     let hotKeyLabel: String?
     let isHovered: Bool
     let menuItems: [MouseTracker.MenuEntry]
@@ -173,7 +177,7 @@ private struct ClientFrameView: View {
 
             Text(label)
                 .font(.system(size: settings.labelFontSize, weight: .medium))
-                .foregroundStyle(settings.labelColor)
+                .foregroundStyle(labelColor)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
