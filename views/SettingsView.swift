@@ -75,6 +75,7 @@ private struct StripSettings: View {
 
             Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
 
+            Toggle("Highlight active client", isOn: $settings.highlightsActiveClient)
             FullWidthDivider()
 
             LabeledContent("Dragging") {

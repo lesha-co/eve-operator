@@ -67,13 +67,17 @@ struct LabelSettings: View {
             }
 
             HStack {
-                Button("Set to mirror") {
-                    for entry in roster.characters {
-                        settings.setLabelColor(.mirrored, for: entry.name)
+                Menu("Set all\u{2026}") {
+                    Button("Default color") { settings.clearCharacterLabelColors() }
+                        .disabled(settings.characterLabelColors.isEmpty)
+                    Button("Mirror EVE") {
+                        for entry in roster.characters {
+                            settings.setLabelColor(.mirrored, for: entry.name)
+                        }
                     }
+                    .disabled(roster.characters.isEmpty)
                 }
-                Button("Set to default") { settings.clearCharacterLabelColors() }
-                    .disabled(settings.characterLabelColors.isEmpty)
+                .fixedSize()
 
                 // The only thing that re-reads EVE's folder after launch. Deliberate: the files
                 // change at most once per logout, so watching for it costs more than a click.

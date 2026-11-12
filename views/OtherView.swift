@@ -23,6 +23,20 @@ struct OtherView: View {
 
     var body: some View {
         Form {
+            LabeledContent("Menu Bar") {
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle("Show icon in the menu bar", isOn: $settings.showsMenuBarIcon)
+                    Text(
+                        "The icon lists the running clients. With it hidden, right-click a preview to reach these settings."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            FullWidthDivider()
+
             LabeledContent("EVE Online") {
                 VStack(alignment: .leading, spacing: 6) {
                     // Middle-truncated: the install lives several directories deep and it is

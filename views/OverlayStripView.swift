@@ -161,6 +161,11 @@ private struct ClientFrameView: View {
         OverlayMetrics.labelOpacity(opacity)
     }
 
+    /// Only the frontmost client is picked out, and only while the user wants it to be.
+    private var isHighlighted: Bool {
+        settings.highlightsActiveClient && window.isActive
+    }
+
     private var label: String {
         let name = window.characterName ?? window.displayName
         guard let hotKeyLabel else { return name }
@@ -176,8 +181,9 @@ private struct ClientFrameView: View {
 
             RoundedRectangle(cornerRadius: OverlayMetrics.cornerRadius)
                 .strokeBorder(
-                    window.isActive ? Color.accentColor : Color.white.opacity(0.3),
-                    lineWidth: window.isActive ? 1.5 : 1
+                    isHighlighted ? Color.accentColor : OverlayMetrics.borderColor,
+                    lineWidth: isHighlighted
+                        ? OverlayMetrics.activeBorderWidth : OverlayMetrics.borderWidth
                 )
                 .opacity(opacity)
 

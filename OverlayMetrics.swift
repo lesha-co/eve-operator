@@ -33,6 +33,12 @@ nonisolated enum OverlayMetrics {
     /// Whether the strip floats above other applications' windows.
     static let defaultPreviewsAlwaysOnTop = true
 
+    /// Whether the frontmost client's preview is picked out with a coloured border.
+    static let defaultHighlightsActiveClient = true
+
+    /// Whether the status item is in the menu bar.
+    static let defaultShowsMenuBarIcon = true
+
     /// Colour of the character name drawn inside a frame, and where in the frame it sits.
     static let defaultLabelColor = Color.white
     static let defaultLabelEdge = LabelEdge.bottom
@@ -113,6 +119,15 @@ nonisolated enum OverlayMetrics {
     static let labelMinimumOpacity: Double = 0.9
 
     static let hoverAnimationDuration: Double = 0.12
+
+    // MARK: - Frame border
+
+    /// Every frame is outlined, so a preview over a dark background still has an edge. The
+    /// frontmost client's outline is the accent colour and a little heavier — see
+    /// `OverlaySettings.highlightsActiveClient`, which can turn that distinction off.
+    static let borderColor = Color.white.opacity(0.3)
+    static let borderWidth: CGFloat = 1
+    static let activeBorderWidth: CGFloat = 1.5
 
     // MARK: - Helpers
 

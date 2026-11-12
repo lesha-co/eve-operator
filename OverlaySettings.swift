@@ -98,6 +98,16 @@ final class OverlaySettings {
         didSet { defaults.set(previewsAlwaysOnTop, forKey: Key.previewsAlwaysOnTop) }
     }
 
+    /// Whether the frontmost client's frame is picked out with a coloured border.
+    var highlightsActiveClient: Bool {
+        didSet { defaults.set(highlightsActiveClient, forKey: Key.highlightsActiveClient) }
+    }
+
+    /// Whether the app keeps an icon in the menu bar — see `MenuBarController`.
+    var showsMenuBarIcon: Bool {
+        didSet { defaults.set(showsMenuBarIcon, forKey: Key.showsMenuBarIcon) }
+    }
+
     /// Colour of the character name drawn inside each frame.
     var labelColor: Color {
         didSet { defaults.set(Self.hex(from: labelColor), forKey: Key.labelColor) }
@@ -193,6 +203,12 @@ final class OverlaySettings {
         previewsAlwaysOnTop =
             defaults.object(forKey: Key.previewsAlwaysOnTop) as? Bool
             ?? OverlayMetrics.defaultPreviewsAlwaysOnTop
+        highlightsActiveClient =
+            defaults.object(forKey: Key.highlightsActiveClient) as? Bool
+            ?? OverlayMetrics.defaultHighlightsActiveClient
+        showsMenuBarIcon =
+            defaults.object(forKey: Key.showsMenuBarIcon) as? Bool
+            ?? OverlayMetrics.defaultShowsMenuBarIcon
         labelColor = Self.color(defaults, Key.labelColor, or: OverlayMetrics.defaultLabelColor)
         labelEdge = Self.option(
             defaults, Key.labelEdge, or: OverlayMetrics.defaultLabelEdge)
@@ -260,6 +276,8 @@ final class OverlaySettings {
         framesPerRow = OverlayMetrics.defaultFramesPerRow
         requiresCommandToDrag = OverlayMetrics.defaultRequiresCommandToDrag
         previewsAlwaysOnTop = OverlayMetrics.defaultPreviewsAlwaysOnTop
+        highlightsActiveClient = OverlayMetrics.defaultHighlightsActiveClient
+        showsMenuBarIcon = OverlayMetrics.defaultShowsMenuBarIcon
         labelColor = OverlayMetrics.defaultLabelColor
         labelEdge = OverlayMetrics.defaultLabelEdge
         labelAlignment = OverlayMetrics.defaultLabelAlignment
@@ -281,6 +299,8 @@ final class OverlaySettings {
             && framesPerRow == OverlayMetrics.defaultFramesPerRow
             && requiresCommandToDrag == OverlayMetrics.defaultRequiresCommandToDrag
             && previewsAlwaysOnTop == OverlayMetrics.defaultPreviewsAlwaysOnTop
+            && highlightsActiveClient == OverlayMetrics.defaultHighlightsActiveClient
+            && showsMenuBarIcon == OverlayMetrics.defaultShowsMenuBarIcon
             && labelEdge == OverlayMetrics.defaultLabelEdge
             && labelAlignment == OverlayMetrics.defaultLabelAlignment
             && labelFontSize == OverlayMetrics.defaultLabelFontSize
@@ -381,6 +401,8 @@ final class OverlaySettings {
         static let framesPerRow = "overlay.framesPerRow"
         static let requiresCommandToDrag = "overlay.requiresCommandToDrag"
         static let previewsAlwaysOnTop = "overlay.previewsAlwaysOnTop"
+        static let highlightsActiveClient = "overlay.highlightsActiveClient"
+        static let showsMenuBarIcon = "menubar.showsIcon"
         static let labelColor = "overlay.labelColor"
         static let labelEdge = "overlay.labelEdge"
         static let labelAlignment = "overlay.labelAlignment"
