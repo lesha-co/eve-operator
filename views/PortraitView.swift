@@ -17,7 +17,7 @@ struct PortraitView: View {
         )!
         LabeledContent("Support the developer") {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading) {
 
                     WordFlowLayout(spacing: Self.spaceWidth) {
                         ForEach(
@@ -29,15 +29,13 @@ struct PortraitView: View {
                             Text(word)
                         }
                         characterNameButton
+
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-
                     if copied {
-                        Text(
-                            "Copied to clipboard"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        
+                        Label("Copied to clipboard. Thank you!", systemImage: "checkmark.circle.fill").secondaryCaption()
+                        
                     }
                 }
                 AsyncImage(url: esiURL) { image in
@@ -56,15 +54,22 @@ struct PortraitView: View {
     }
 
     private var characterNameButton: some View {
+
         Button(action: copyCharacterName) {
             Text(characterName)
                 .bold()
-                .foregroundStyle(Color.yellow)
+                .foregroundStyle(Color.accentColor)
                 .underline(isHoveringName)
+            
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
-        .onHover { isHoveringName = $0 }
+        .onHover { hovering in
+            isHoveringName = hovering
+            if !hovering {
+                copied = false
+            }
+        }
         .help("Copy the character name to the clipboard")
     }
 
@@ -135,5 +140,6 @@ private struct WordFlowLayout: Layout {
         PortraitView()
     }
     .scenePadding()
+    .labeledContentStyle(.boldLabel)
     .frame(width: 460)
 }

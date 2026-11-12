@@ -164,7 +164,7 @@ private struct PermissionRow: View {
                 if let action {
                     Button(action.title) { action.run() }
                 }
-                Text(explanation).font(.caption)
+                Text(explanation).secondaryCaption()
 
             }
         }

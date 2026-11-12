@@ -60,17 +60,19 @@ struct LabelSettings: View {
         VStack(alignment: .leading) {
             if roster.characters.isEmpty {
                 Text("No characters seen yet. Log a client in and it will appear here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .secondaryCaption()
             } else {
                 rosterTable
             }
 
             HStack {
-                Menu("Set all\u{2026}") {
+                Spacer()
+                Button("Sync colors") { themes.reload() }
+                    .disabled(themes.status == .loading)
+                Menu("Set all to\u{2026}") {
                     Button("Default color") { settings.clearCharacterLabelColors() }
                         .disabled(settings.characterLabelColors.isEmpty)
-                    Button("Mirror EVE") {
+                    Button("Syncronise EVE Online settings") {
                         for entry in roster.characters {
                             settings.setLabelColor(.mirrored, for: entry.name)
                         }
@@ -78,13 +80,8 @@ struct LabelSettings: View {
                     .disabled(roster.characters.isEmpty)
                 }
                 .fixedSize()
-
-                // The only thing that re-reads EVE's folder after launch. Deliberate: the files
-                // change at most once per logout, so watching for it costs more than a click.
-                Button("Reload colors") { themes.reload() }
-                    .disabled(themes.status == .loading)
-
             }
+            Text("Mirror will attempt to use the accent color from that character client theme. Currently does  not support built-in themes, only custom ones. Use the sync button to update colors if you've changed them.").secondaryCaption()
             readStatus
         }
 
@@ -124,7 +121,7 @@ struct LabelSettings: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
         case .loading:
-            Text("Reading\u{2026}").font(.caption).foregroundStyle(.secondary)
+            Text("Reading\u{2026}").secondaryCaption()
         case .ok:
             EmptyView()
         case .failed(let reason):

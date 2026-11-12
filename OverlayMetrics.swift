@@ -122,12 +122,7 @@ nonisolated enum OverlayMetrics {
 
     // MARK: - Frame border
 
-    /// Every frame is outlined, so a preview over a dark background still has an edge. The
-    /// frontmost client's outline is the accent colour and a little heavier — see
-    /// `OverlaySettings.highlightsActiveClient`, which can turn that distinction off.
-    static let borderColor = Color.white.opacity(0.3)
-    static let borderWidth: CGFloat = 1
-    static let activeBorderWidth: CGFloat = 1.5
+    static let activeBorderWidth: CGFloat = 5
 
     // MARK: - Helpers
 

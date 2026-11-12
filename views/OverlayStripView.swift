@@ -181,11 +181,10 @@ private struct ClientFrameView: View {
 
             RoundedRectangle(cornerRadius: OverlayMetrics.cornerRadius)
                 .strokeBorder(
-                    isHighlighted ? Color.accentColor : OverlayMetrics.borderColor,
+                    labelColor,
                     lineWidth: isHighlighted
-                        ? OverlayMetrics.activeBorderWidth : OverlayMetrics.borderWidth
-                )
-                .opacity(opacity)
+                        ? OverlayMetrics.activeBorderWidth : 0
+                ).opacity(labelOpacity)
 
             Text(label)
                 .font(.system(size: settings.labelFontSize, weight: .medium))

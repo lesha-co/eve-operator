@@ -29,8 +29,7 @@ struct OtherView: View {
                     Text(
                         "The icon lists the running clients. With it hidden, right-click a preview to reach these settings."
                     )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .secondaryCaption()
                     .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -91,8 +90,7 @@ struct OtherView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if settings.eveSettingsFolderPath.isEmpty {
                     Text("Not configured")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .secondaryCaption()
                 } else {
                     // The directory name is the whole install path with the separators
                     // mangled, so it is long and it is the tail that identifies the shard.
@@ -114,8 +112,7 @@ struct OtherView: View {
 
                 if let detectionNote {
                     Text(detectionNote)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .secondaryCaption()
                 }
 
                 if profiles.count > 1 {
@@ -208,8 +205,7 @@ struct OtherView: View {
             .onHover { isHoveringTrademark = $0 }
             Text(".")
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .secondaryCaption()
     }
 
     /// Read through the setting rather than `EVEApplication.isInstalled` so the warning is

@@ -74,7 +74,8 @@ private struct StripSettings: View {
             .pickerStyle(.segmented)
 
             Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
-
+            Text("In order to use this feature, EVE Online clients must be in Window mode (Settings → Display & Graphics → Display → Display Mode → Window mode)").secondaryCaption()
+            
             Toggle("Highlight active client", isOn: $settings.highlightsActiveClient)
             FullWidthDivider()
 
@@ -84,16 +85,14 @@ private struct StripSettings: View {
                         Text("Drag from anywhere")
                         Text(
                             "A press that travels more than \(Int(OverlayMetrics.dragThreshold)) pt moves the strip; anything shorter raises the client under the pointer."
-                        ).font(.caption)
-                            .foregroundStyle(.secondary)
+                        ).secondaryCaption()
                     }
                     .tag(false)
                     VStack(alignment: .leading) {
                         Text("Hold ⌘ to drag")
                         Text(
                             "A plain click always raises the client under the pointer. Hold ⌘ and drag to move the strip."
-                        ).font(.caption)
-                            .foregroundStyle(.secondary)
+                        ).secondaryCaption()
                     }
                     .tag(true)
                 }
@@ -134,8 +133,7 @@ private struct HotKeySettings: View {
                             ForEach(HotKeyModifiers.all, id: \.rawValue, content: modifierButton)
                         }
                         Text(modifierExplanation)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .secondaryCaption()
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -193,8 +191,7 @@ private struct HotKeySettings: View {
     @ViewBuilder private var assignments: some View {
         if model.windows.isEmpty {
             Text("No clients are running.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .secondaryCaption()
         } else {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(model.windows.enumerated()), id: \.element.id) { slot, window in
