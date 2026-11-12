@@ -95,8 +95,17 @@ nonisolated enum OverlayMetrics {
     static let padding: CGFloat = 6
     static let cornerRadius: CGFloat = 5
 
-    /// Distance from the top of the screen when the strip has no remembered position.
-    static let defaultTopInset: CGFloat = 8
+    /// Gap between a docked strip and the edges of the usable screen. The centre docks are
+    /// only inset on the axis they are not centred on.
+    static let dockInset: CGFloat = 0
+
+    /// Dropping the strip with its leading-bottom corner this close — on both axes — to where
+    /// a dock would put it counts as aiming for that dock. Generous, because the whole point
+    /// is not having to be accurate.
+    static let dockSnapDistance: CGFloat = 240
+
+    /// How long the strip takes to ease into a dock it was dropped near.
+    static let dockEaseDuration: Double = 0.16
 
     /// How far the pointer has to travel before a press counts as a drag rather than a click.
     static let dragThreshold: CGFloat = 4
