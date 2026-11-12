@@ -38,9 +38,8 @@ struct LabelSettings: View {
                 }
 
                 LabeledContent("Per-character") {
-                    perCharacter.disabled(settings.labelColorSource != .perCharacter).border(
-                        .yellow)
-                }.border(.red)
+                    perCharacter.disabled(settings.labelColorSource != .perCharacter)
+                }
 
                 FullWidthDivider()
                 SliderRow(
@@ -106,18 +105,22 @@ struct LabelSettings: View {
             TableColumn("Source") { CharacterSourceCell(entry: $0) }
                 .width(min: 64, ideal: 64, max: 64)
         }
-        .tableStyle(.inset)
+        .tableStyle(.bordered)
         .alternatingRowBackgrounds()
-        // The cell frames alone do not shrink a row past the stock list metric; this is what
-        // actually closes the gap above and below each one.
+
         .environment(\.defaultMinListRowHeight, RosterTable.cell)
         .frame(height: tableHeight)
+        // A `Table` publishes no text baseline. Without this the enclosing stack has none
+        // to report either, and the row's `.firstTextBaseline` alignment falls back to the
+        // content's top edge — which then gets parked on the label's baseline, dropping the
+        // whole block a line below "Per-character". Offer the header's baseline instead.
+        .alignmentGuide(.firstTextBaseline) { $0[.top] + RosterTable.headerBaseline }
     }
 
     /// A `Table` has no intrinsic height and the settings tabs size themselves to their
     /// content, so an unpinned one either collapses or pushes the window off the screen.
     private var tableHeight: CGFloat {
-        let visible = min(max(roster.characters.count, 3), 8)
+        let visible = min(max(roster.characters.count, 5), 8)
         return CGFloat(visible) * RosterTable.row + RosterTable.header
     }
 
@@ -150,6 +153,9 @@ private enum RosterTable {
     /// What one row occupies, cell plus the table's own vertical padding.
     static let row: CGFloat = 20
     static let header: CGFloat = 24
+    /// Where the header's text sits, measured from the top of the table. Only used to line
+    /// the Form label up with it.
+    static let headerBaseline: CGFloat = 18
     /// Enough for a small color well and a small pop-up button, and no more.
     static let cell: CGFloat = 16
 }
