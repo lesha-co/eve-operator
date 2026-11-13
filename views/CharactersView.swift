@@ -28,12 +28,12 @@ struct CharacterSettings: View {
                     
                     HStack {
                         Spacer()
-                        Button("Sync colors") { themes.reload() }
+                        Button("Syncronise EVE Online settings") { themes.reload() }
                             .disabled(themes.status == .loading)
                         Menu("Set all to\u{2026}") {
                             Button("Default color") { settings.clearCharacterLabelColors() }
                                 .disabled(settings.characterLabelColors.isEmpty)
-                            Button("Syncronise EVE Online settings") {
+                            Button("Client theme") {
                                 for entry in roster.characters {
                                     settings.setLabelColor(.mirrored, for: entry.name)
                                 }
