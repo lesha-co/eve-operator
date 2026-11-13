@@ -6,6 +6,7 @@
 //  user-editable settings, plus the fixed layout values that are not worth exposing.
 //
 
+import AppKit
 import CoreGraphics
 import Foundation
 import SwiftUI
@@ -81,6 +82,10 @@ nonisolated enum OverlayMetrics {
     static let framesPerRowRange: ClosedRange<Int> = 1...6
     /// Never all the way to zero, or the strip becomes impossible to find again.
     static let opacityRange: ClosedRange<Double> = 0.05...1.0
+
+    /// EVE sets its level to NSWindow.Level.statusBar
+    /// we need to be above that
+    static let overlayWindowLevel = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
 
     // MARK: - Fixed layout
 

@@ -74,8 +74,7 @@ private struct StripSettings: View {
             .pickerStyle(.segmented)
 
             Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
-            Text("In order to use this feature, EVE Online clients must be in Window mode (Settings → Display & Graphics → Display → Display Mode → Window mode)").secondaryCaption()
-            
+
             Toggle("Highlight active client", isOn: $settings.highlightsActiveClient)
             FullWidthDivider()
 
@@ -396,7 +395,7 @@ enum SettingsWindow {
             // A full-screen client sits at the status-bar level while it is frontmost and
             // would otherwise swallow this window the instant it appeared, but a settings
             // pane permanently pinned over everything is its own kind of annoying.
-            window.level = .floating
+            window.level = .normal
             window.makeKeyAndOrderFront(nil)
             // Survives the app failing to activate, which macOS is free to refuse.
             window.orderFrontRegardless()
