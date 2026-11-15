@@ -24,14 +24,16 @@ struct OtherView: View {
     var body: some View {
         Form {
             LabeledContent("Menu Bar") {
-                VStack(alignment: .leading, spacing: 2) {
-                    Toggle("Show icon in the menu bar", isOn: $settings.showsMenuBarIcon)
-                    Text(
-                        "The icon lists the running clients. With it hidden, right-click a preview to reach these settings."
-                    )
-                    .secondaryCaption()
-                    .fixedSize(horizontal: false, vertical: true)
+                Toggle(isOn: $settings.showsMenuBarIcon) {
+                    VStack(alignment: .leading) {
+                        Text("Show icon in the menu bar")
+                        Text(
+                            "The icon lists the running clients. With it hidden, right-click a preview to reach these settings."
+                        )
+                        .secondaryCaption()
+                    }
                 }
+                
             }
 
             FullWidthDivider()
@@ -244,7 +246,28 @@ struct OtherView: View {
     Form {
         OtherView()
     }
-    .labeledContentStyle(.boldLabel)
     .scenePadding()
     .frame(width: 460)
+}
+
+
+#Preview("Label example") {
+    VStack {
+        Label(
+            "Label example — default",
+            systemImage: "character.textbox.badge.sparkles"
+        )
+        
+        Label(
+            "Label example — arab",
+            systemImage: "character.textbox.badge.sparkles"
+        ).environment(\.locale, Locale(identifier: "ar"))
+        
+        Label(
+            "Label example — chinese",
+            systemImage: "character.textbox.badge.sparkles"
+        ).environment(\.locale, Locale(identifier: "zh"))
+    }
+    .scenePadding()
+    
 }

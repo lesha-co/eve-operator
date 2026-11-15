@@ -140,6 +140,5 @@ private struct WordFlowLayout: Layout {
         PortraitView()
     }
     .scenePadding()
-    .labeledContentStyle(.boldLabel)
     .frame(width: 460)
 }

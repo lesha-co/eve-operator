@@ -153,11 +153,11 @@ final class OperatorModel {
         }
     }
 
-    /// Raises the client in position `slot` of the strip, counting from zero. Out-of-range
-    /// slots are ignored: a key can outlive the client it was registered for by one poll.
+    /// Raises the client the key for `slot` currently points at. An unassigned slot is
+    /// ignored: a key can outlive the client it was registered for by one poll.
     func activateSlot(_ slot: Int) {
-        guard windows.indices.contains(slot) else { return }
-        activate(windows[slot])
+        guard let window = hotKeyAssignments[slot] else { return }
+        activate(window)
     }
 
     func requestAccessibilityPermission() {
@@ -165,6 +165,29 @@ final class OperatorModel {
     }
 
     // MARK: - Hot keys
+
+    /// Which client each function key raises right now, keyed by slot.
+    ///
+    /// A slot is a character's position in `CharacterRoster.characters`, the order the user
+    /// drags into shape in Settings — not a position in the strip. That is the whole point:
+    /// the third character down keeps F3 whether or not the two above it are logged in, so a
+    /// key does not move when someone else logs in or a title changes.
+    ///
+    /// A client that has not set its title yet has no character name and so no key, which is
+    /// unavoidable: there is nothing yet to say which slot it belongs to.
+    var hotKeyAssignments: [Int: EVEWindow] {
+        let roster = CharacterRoster.shared
+        var assignments: [Int: EVEWindow] = [:]
+        for window in windows {
+            guard let name = window.characterName,
+                let slot = roster.slot(for: name),
+                slot < HotKeyMonitor.maxSlots,
+                assignments[slot] == nil
+            else { continue }
+            assignments[slot] = window
+        }
+        return assignments
+    }
 
     /// Keeps the registered keys in step with what is on screen. Driven from the poll rather
     /// than from observation so that the window list, the frontmost application and the
@@ -176,9 +199,9 @@ final class OperatorModel {
         // only taken for as long as the press could have been meant for a client.
         let withheld =
             settings.hotKeysOnlyWhileClientActive && !windows.contains(where: \.isActive)
-        let slots = settings.hotKeysEnabled && !withheld ? windows.count : 0
+        let slots = settings.hotKeysEnabled && !withheld ? Set(hotKeyAssignments.keys) : []
 
-        hotKeys.sync(slotCount: slots, modifiers: settings.hotKeyModifiers)
+        hotKeys.sync(slots: slots, modifiers: settings.hotKeyModifiers)
 
         if hotKeys.unavailableSlots != unavailableHotKeySlots {
             unavailableHotKeySlots = hotKeys.unavailableSlots

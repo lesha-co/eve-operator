@@ -8,27 +8,32 @@
 import SwiftUI
 
 struct CharacterSettings: View {
-    
+
     @Bindable private var settings = OverlaySettings.shared
-    
+
     private var roster = CharacterRoster.shared
     private var themes = EVEThemeStore.shared
 
-    
     var body: some View {
         Form {
             Section {
                 VStack(alignment: .leading) {
-                    if roster.characters.isEmpty {
-                        Text("No characters seen yet. Log a client in and it will appear here.")
-                            .secondaryCaption()
-                    } else {
-                        rosterTable
-                    }
                     
+                    rosterTable
+                    Text(
+                        "Drag a row to reorder. A character keeps its function key wherever it is in this list, whether or not it is logged in."
+                    )
+                    .secondaryCaption()
+                    .fixedSize(horizontal: false, vertical: true)
+                
+
                     HStack {
+                        Button("Forget") {
+                            
+//                            roster.characters.removeAll(where: {$0.isOnline == false})
+                        }.disabled(true)
                         Spacer()
-                        Button("Syncronise EVE Online settings") { themes.reload() }
+                        Button("Syncronise themes") { themes.reload() }
                             .disabled(themes.status == .loading)
                         Menu("Set all to\u{2026}") {
                             Button("Default color") { settings.clearCharacterLabelColors() }
@@ -42,60 +47,68 @@ struct CharacterSettings: View {
                         }
                         .fixedSize()
                     }
-                    Text("Mirror will attempt to use the accent color from that character client theme. Currently does  not support built-in themes, only custom ones. Use the sync button to update colors if you've changed them.").secondaryCaption()
+                    Text(
+                        "Mirror will attempt to use the accent color from that character client theme. Currently does  not support built-in themes, only custom ones. Use the sync button to update colors if you've changed them."
+                    ).secondaryCaption()
                     readStatus
                 }
-                
+
             }
         }
     }
-    
-   
 
-    
     private var rosterTable: some View {
-        Table(roster.characters) {
+        // Spelled out as `of:` plus a `rows:` builder rather than the one-argument form so the
+        // rows can be a `ForEach`: row-level drag and the insertion indicator that comes with
+        // `dropDestination` are only available on dynamic row content.
+        Table(of: CharacterRoster.Entry.self) {
+            
             TableColumn("Character") { CharacterNameCell(entry: $0) }
+            TableColumn("Key") { CharacterKeyCell(entry: $0) }
+                .width(min: 32, ideal: 40, max: 40)
             TableColumn("Color") { CharacterColorCell(entry: $0) }
-                .width(min: 50, ideal: 50, max: 50)
+                .width(min: 36, ideal: 36, max: 36)
             TableColumn("Source") { CharacterSourceCell(entry: $0) }
                 .width(min: 64, ideal: 64, max: 64)
+        } rows: {
+            ForEach(roster.characters) {
+                TableRow($0).draggable($0.name)
+            }
+            .dropDestination(for: String.self) {
+                print("Move: \($1) to \($0)")
+                roster.move(names: $1, to: $0)
+            }
         }
         .tableStyle(.bordered)
         .alternatingRowBackgrounds()
         
         .environment(\.defaultMinListRowHeight, RosterTable.cell)
         .frame(height: tableHeight)
-        // A `Table` publishes no text baseline. Without this the enclosing stack has none
-        // to report either, and the row's `.firstTextBaseline` alignment falls back to the
-        // content's top edge — which then gets parked on the label's baseline, dropping the
-        // whole block a line below "Per-character". Offer the header's baseline instead.
-        .alignmentGuide(.firstTextBaseline) { $0[.top] + RosterTable.headerBaseline }
     }
-    
-    /// A `Table` has no intrinsic height and the settings tabs size themselves to their
-    /// content, so an unpinned one either collapses or pushes the window off the screen.
-    private var tableHeight: CGFloat {
-        let visible = min(max(roster.characters.count, 5), 8)
-        return CGFloat(visible) * RosterTable.row + RosterTable.header
-    }
-    
+
+    //    /// A `Table` has no intrinsic height and the settings tabs size themselves to their
+    //    /// content, so an unpinned one either collapses or pushes the window off the screen.
+        private var tableHeight: CGFloat {
+            let visible = min(max(roster.characters.count, 5), 8)
+            return CGFloat(visible) * RosterTable.row + RosterTable.header
+        }
+
     @ViewBuilder private var readStatus: some View {
         switch themes.status {
-            case .notConfigured:
-                Text("Settings folder not set")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            case .loading:
-                Text("Reading\u{2026}").secondaryCaption()
-            case .ok:
-                EmptyView()
-            case .failed(let reason):
-                Text(reason)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+        case .notConfigured:
+            Text("Settings folder not set")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        case .loading:
+            Text("Reading\u{2026}").secondaryCaption()
+        case .ok:
+            EmptyView()
+        case .failed(let reason):
+            Text(reason)
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
     }
 
@@ -108,24 +121,68 @@ struct CharacterSettings: View {
 /// third taller than the controls in it.
 private enum RosterTable {
     /// What one row occupies, cell plus the table's own vertical padding.
-    static let row: CGFloat = 20
-    static let header: CGFloat = 24
-    /// Where the header's text sits, measured from the top of the table. Only used to line
-    /// the Form label up with it.
-    static let headerBaseline: CGFloat = 18
+        static let row: CGFloat = 20
+        static let header: CGFloat = 24
     /// Enough for a small color well and a small pop-up button, and no more.
-    static let cell: CGFloat = 16
+        static let cell: CGFloat = 16
 }
 
 /// The three cells below are one logical row, split because a `Table` addresses columns
 /// rather than rows. Each reads the stores it needs directly, so a change to one character's
 /// colour redraws that cell and nothing else.
 
-private struct CharacterNameCell: View {
+/// The function key this row's place in the order buys it. Shown here because this table is
+/// the only place the order can be changed, and a position with nothing to show for it does
+/// not explain why dragging matters.
+private struct CharacterKeyCell: View {
+
+    let entry: CharacterRoster.Entry
+
+    init(entry: CharacterRoster.Entry) { self.entry = entry }
+
+    private var settings = OverlaySettings.shared
+    private var roster = CharacterRoster.shared
     
+    var body: some View {
+                
+        Text(slot.map { HotKeyMonitor.label(forSlot: $0, modifiers: settings.hotKeyModifiers) } ?? "\u{2014}")
+            .font(.caption)
+            .monospaced()
+            .foregroundStyle(.secondary)
+            // Dimmed rather than hidden while the keys are off: the order still means this,
+            // it is just not bound to anything at the moment.
+            .opacity(settings.hotKeysEnabled ? 1 : 0.5)
+            .help(help)
+            .frame(height: RosterTable.cell, alignment: .leading)
+    }
+
+    /// `nil` past the end of the F-key row, where the order goes on but the keys run out.
+    private var slot: Int? {
+        guard let slot = roster.slot(for: entry.name), slot < HotKeyMonitor.maxSlots else {
+            return nil
+        }
+        return slot
+    }
+
+    /// The column is too narrow for the modifiers, so the bare key is drawn and the whole
+    /// combination lives here.
+    private var help: String {
+        guard let slot else {
+            return "Past the last function key \u{2014} no key raises this character"
+        }
+        let label = HotKeyMonitor.label(forSlot: slot, modifiers: settings.hotKeyModifiers)
+        guard settings.hotKeysEnabled else { return "\(label), once hot keys are turned on" }
+        return "Raised by \(label)"
+    }
+}
+
+private struct CharacterNameCell: View {
+
     let entry: CharacterRoster.Entry
     
     var body: some View {
+        
+        
         HStack(spacing: 5) {
             Text(entry.name)
                 .lineLimit(1)
@@ -138,47 +195,47 @@ private struct CharacterNameCell: View {
             }
         }
         .font(.callout)
-        .frame(height: RosterTable.cell, alignment: .leading)
+            .frame(height: RosterTable.cell, alignment: .leading)
     }
 }
 
 /// What this character's label is drawn in, and — when it is a colour of its own — the way
 /// to change it.
 private struct CharacterColorCell: View {
-    
+
     let entry: CharacterRoster.Entry
-    
+
     // Spelled out because the private stores below make the memberwise one private too.
     init(entry: CharacterRoster.Entry) { self.entry = entry }
-    
+
     @Bindable private var settings = OverlaySettings.shared
     private var themes = EVEThemeStore.shared
     private var roster = CharacterRoster.shared
-    
+
     var body: some View {
         content
             .controlSize(.small)
-            .frame(height: RosterTable.cell, alignment: .leading)
+                .frame(height: RosterTable.cell, alignment: .leading)
     }
-    
+
     @ViewBuilder private var content: some View {
         switch settings.labelColorSetting(for: entry.name) {
-            case .inherited:
-                // Shown, not offered: editing it here would move the default out from under
-                // every other inherited row. The Default color picker above owns it.
-                swatch(settings.labelColor, help: "Default color")
-            case .fixed:
-                ColorPicker("Color", selection: customColor, supportsOpacity: false)
-                    .labelsHidden()
-            case .mirrored:
-                if entry.characterID == nil {
-                    assignMenu
-                } else {
-                    mirrorResult
-                }
+        case .inherited:
+            // Shown, not offered: editing it here would move the default out from under
+            // every other inherited row. The Default color picker above owns it.
+            swatch(settings.labelColor, help: "Default color")
+        case .fixed:
+            ColorPicker("Color", selection: customColor, supportsOpacity: false)
+                .labelsHidden()
+        case .mirrored:
+            if entry.characterID == nil {
+                assignMenu
+            } else {
+                mirrorResult
+            }
         }
     }
-    
+
     /// A colour this row displays but does not own — the global default, or one mirrored out
     /// of EVE. Rendered as a picker so it lines up with the editable rows, inert because the
     /// value belongs somewhere else.
@@ -188,26 +245,26 @@ private struct CharacterColorCell: View {
             .disabled(true)
             .help(help)
     }
-    
+
     @ViewBuilder private var mirrorResult: some View {
         let resolution = LabelColors.resolve(entry.name)
         switch resolution.source {
-            case .mirrored(let hex):
-                swatch(resolution.color, help: hex)
-            case .unavailable(let reason):
-                // The column is too narrow for the sentence, so the swatch shows what is
-                // actually being drawn and the warning carries the reason.
-                HStack(spacing: 3) {
-                    swatch(resolution.color, help: "\(reason) \u{2014} using default")
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .help("\(reason) \u{2014} using default")
-                }
-            case .global, .custom:
-                EmptyView()
+        case .mirrored(let hex):
+            swatch(resolution.color, help: hex)
+        case .unavailable(let reason):
+            // The column is too narrow for the sentence, so the swatch shows what is
+            // actually being drawn and the warning carries the reason.
+            HStack(spacing: 3) {
+                swatch(resolution.color, help: "\(reason) \u{2014} using default")
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("\(reason) \u{2014} using default")
+            }
+        case .global, .custom:
+            EmptyView()
         }
     }
-    
+
     /// ESI could not say which ID this name belongs to, so offer the IDs the settings folder
     /// knows about and let the user settle it.
     @ViewBuilder private var assignMenu: some View {
@@ -225,14 +282,14 @@ private struct CharacterColorCell: View {
             .help(resolutionHelp)
         }
     }
-    
+
     private var resolutionHelp: String {
         if case .failed(let reason) = entry.resolution {
             return "Could not look this name up: \(reason)"
         }
         return "This character's ID is not known yet"
     }
-    
+
     private var customColor: Binding<Color> {
         Binding(
             get: {
@@ -247,64 +304,65 @@ private struct CharacterColorCell: View {
 
 /// Where this character's colour comes from.
 private struct CharacterSourceCell: View {
-    
+
     let entry: CharacterRoster.Entry
-    
+
     init(entry: CharacterRoster.Entry) { self.entry = entry }
-    
+
     @Bindable private var settings = OverlaySettings.shared
     private var roster = CharacterRoster.shared
-    
+
     private enum Source: String, CaseIterable, Identifiable {
         case inherited, mirrored, custom
-        
+
         var id: String { rawValue }
-        
+
         var title: String {
             switch self {
-                case .inherited: return "Default"
-                case .mirrored: return "Mirror"
-                case .custom: return "Custom"
+            case .inherited: return "Default"
+            case .mirrored: return "Mirror"
+            case .custom: return "Custom"
             }
         }
     }
-    
+
     var body: some View {
         Picker("Source", selection: source) {
             ForEach(Source.allCases) { Text($0.title).tag($0) }
         }
+        
         .labelsHidden()
         .controlSize(.small)
         // Height first, then width: the inner frame pins the row metric and passes the
         // column's full width through, so the pop-up fills its cell instead of hugging the
         // longest title.
-        .frame(height: RosterTable.cell)
+                .frame(height: RosterTable.cell)
         .frame(maxWidth: .infinity)
     }
-    
+
     private var source: Binding<Source> {
         Binding(
             get: {
                 switch settings.labelColorSetting(for: entry.name) {
-                    case .inherited: return .inherited
-                    case .mirrored: return .mirrored
-                    case .fixed: return .custom
+                case .inherited: return .inherited
+                case .mirrored: return .mirrored
+                case .fixed: return .custom
                 }
             },
             set: { new in
                 switch new {
-                    case .inherited:
-                        settings.setLabelColor(.inherited, for: entry.name)
-                    case .mirrored:
-                        settings.setLabelColor(.mirrored, for: entry.name)
-                        // A name with no ID has nothing to mirror from; asking now means the row
-                        // can offer a result rather than a shrug.
-                        if entry.characterID == nil { roster.resolvePending() }
-                    case .custom:
-                        // Seeded with whatever the row resolves to today, so "mirror, then
-                        // tweak" starts from the mirrored colour rather than from white.
-                        settings.setLabelColor(
-                            .fixed(LabelColors.resolve(entry.name).color), for: entry.name)
+                case .inherited:
+                    settings.setLabelColor(.inherited, for: entry.name)
+                case .mirrored:
+                    settings.setLabelColor(.mirrored, for: entry.name)
+                    // A name with no ID has nothing to mirror from; asking now means the row
+                    // can offer a result rather than a shrug.
+                    if entry.characterID == nil { roster.resolvePending() }
+                case .custom:
+                    // Seeded with whatever the row resolves to today, so "mirror, then
+                    // tweak" starts from the mirrored colour rather than from white.
+                    settings.setLabelColor(
+                        .fixed(LabelColors.resolve(entry.name).color), for: entry.name)
                 }
             }
         )
@@ -315,7 +373,6 @@ private struct CharacterSourceCell: View {
     Form {
         CharacterSettings()
     }
-    .labeledContentStyle(.boldLabel)
     .scenePadding()
     .frame(width: 460)
 }

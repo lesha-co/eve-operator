@@ -2,7 +2,7 @@
 //  HotKeyMonitor.swift
 //  eve-operator
 //
-//  System-wide hot keys that raise a client by its position in the strip.
+//  System-wide hot keys that raise a client by its character's position in the roster.
 //
 
 import AppKit
@@ -99,8 +99,10 @@ final class HotKeyMonitor {
 
     /// How the key for `slot` reads to a human — "F3", or "⌃⌥F3". `nil` past the end of the
     /// table, where there is no key to describe.
-    static func label(forSlot slot: Int, modifiers: HotKeyModifiers) -> String? {
-        guard keyCodes.indices.contains(slot) else { return nil }
+    ///
+    /// CLAUDE: please check that we really don't need keyCodes.indices guard because it's just a label and won't get called with incorrect slot. if it's called with incorrect slot number (not existing in keyCodes.indices) then the calling code is incorrect, not this
+    static func label(forSlot slot: Int, modifiers: HotKeyModifiers) -> String {
+//        guard keyCodes.indices.contains(slot) else { return nil }
         return modifiers.symbols + "F\(slot + 1)"
     }
 
@@ -111,7 +113,7 @@ final class HotKeyMonitor {
 
     /// What `registered` was built from, so the poll driving this does nothing on the vast
     /// majority of passes, where nothing has changed.
-    private var current: (slots: Int, modifiers: HotKeyModifiers)?
+    private var current: (slots: Set<Int>, modifiers: HotKeyModifiers)?
 
     /// Slots whose key another application had already claimed. Surfaced in Settings, because
     /// the alternative is a key that silently does nothing.
@@ -126,22 +128,24 @@ final class HotKeyMonitor {
         if let handler { RemoveEventHandler(handler) }
     }
 
-    /// Registers the first `slotCount` keys and nothing else.
+    /// Registers exactly `slots` and nothing else.
     ///
     /// Unregistering the rest is the point as much as registering these: an unmodified F-key
     /// is a key every other application wants too, so one is only taken while there is a
-    /// client it would actually raise.
-    func sync(slotCount: Int, modifiers: HotKeyModifiers) {
-        let slots = min(max(slotCount, 0), Self.maxSlots)
+    /// client it would actually raise. The set is deliberately not a count — slots belong to
+    /// characters now, so a logged-out character in the middle of the roster leaves a hole,
+    /// and the key in that hole goes on meaning what it means everywhere else.
+    func sync(slots requested: Set<Int>, modifiers: HotKeyModifiers) {
+        let slots = requested.filter(Self.keyCodes.indices.contains)
         guard current?.slots != slots || current?.modifiers != modifiers else { return }
         current = (slots, modifiers)
 
         unregisterAll()
-        guard slots > 0 else { return }
+        guard !slots.isEmpty else { return }
         installHandler()
 
-        var unavailable: [Int] = []
-        for slot in 0..<slots {
+        var unavailableXXX: [Int] = []
+        for slot in slots.sorted() {
             let id = EventHotKeyID(signature: Self.signature, id: UInt32(slot))
             var hotKey: EventHotKeyRef?
             let status = RegisterEventHotKey(
@@ -153,10 +157,10 @@ final class HotKeyMonitor {
             } else {
                 // Almost always `eventHotKeyExistsErr`: something else registered it first,
                 // and whatever that is keeps it.
-                unavailable.append(slot)
+                unavailableXXX.append(slot)
             }
         }
-        unavailableSlots = unavailable
+        unavailableSlots = unavailableXXX
     }
 
     fileprivate func activate(slot: Int) {

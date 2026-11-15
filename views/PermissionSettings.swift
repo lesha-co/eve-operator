@@ -176,7 +176,6 @@ private struct PermissionRow: View {
     Form {
         PermissionSettings()
     }
-    .labeledContentStyle(.boldLabel)
     .scenePadding()
     .frame(width: 460)
 }

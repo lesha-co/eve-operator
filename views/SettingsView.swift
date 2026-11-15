@@ -14,7 +14,7 @@ struct SettingsView: View {
     var body: some View {
 
         TabView {
-            Tab("Previews", systemImage: "rectangle.on.rectangle") {
+            Tab("Previews", systemImage: "rectangle.grid.3x1") {
                 StripSettings()
             }
             Tab("Labels", systemImage: "textformat") {
@@ -23,6 +23,9 @@ struct SettingsView: View {
             Tab("Hot Keys", systemImage: "keyboard") {
                 HotKeySettings()
             }
+            Tab("Characters", systemImage: "person.2.badge.gearshape") {
+                CharacterSettings()
+            }
             Tab("Permissions", systemImage: "lock.shield") {
                 PermissionSettings()
             }
@@ -30,7 +33,6 @@ struct SettingsView: View {
                 OtherView()
             }
         }
-        .labeledContentStyle(.boldLabel)
         .scenePadding()
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
@@ -39,219 +41,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Tabs
 
-private struct StripSettings: View {
-
-    @Bindable private var settings = OverlaySettings.shared
-
-    var body: some View {
-
-        Form {
-
-            SliderRow(
-                title: "Default opacity",
-                value: $settings.idleOpacity,
-                range: OverlayMetrics.opacityRange,
-                format: percent)
-
-            SliderRow(
-                title: "Focused opacity",
-                value: $settings.hoverOpacity,
-                range: OverlayMetrics.opacityRange,
-                format: percent)
-
-            SliderRow(
-                title: "Frame height",
-                value: $settings.frameHeight,
-                range: OverlayMetrics.frameHeightRange,
-                step: 10.0,
-                format: { "\(Int($0.rounded())) pt" })
-
-            Picker("Frames in a row", selection: $settings.framesPerRow) {
-                ForEach(OverlayMetrics.framesPerRowRange, id: \.self) { Text("\($0)").tag($0) }
-            }
-            .pickerStyle(.segmented)
-
-            Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
-
-            Toggle("Highlight active client", isOn: $settings.highlightsActiveClient)
-            FullWidthDivider()
-
-            LabeledContent("Dragging") {
-                Picker("Drag", selection: $settings.requiresCommandToDrag) {
-                    VStack(alignment: .leading) {
-                        Text("Drag from anywhere")
-                        Text(
-                            "A press that travels more than \(Int(OverlayMetrics.dragThreshold)) pt moves the strip; anything shorter raises the client under the pointer."
-                        ).secondaryCaption()
-                    }
-                    .tag(false)
-                    VStack(alignment: .leading) {
-                        Text("Hold ⌘ to drag")
-                        Text(
-                            "A plain click always raises the client under the pointer. Hold ⌘ and drag to move the strip."
-                        ).secondaryCaption()
-                    }
-                    .tag(true)
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
-            }
-
-            FullWidthDivider()
-
-            PortraitView()
-        }
-        .clipped()
-    }
-
-    private nonisolated func percent(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))%"
-    }
-}
-
-private struct HotKeySettings: View {
-
-    @Bindable private var settings = OverlaySettings.shared
-
-    /// The live window list, so the table below says which character each key raises rather
-    /// than merely that it raises "the third one".
-    private var model = OperatorModel.shared
-
-    var body: some View {
-        Form {
-
-            Toggle("Raise previews with function keys", isOn: $settings.hotKeysEnabled)
-                .bold()
-
-            Group {
-                LabeledContent("Modifiers") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 6) {
-                            ForEach(HotKeyModifiers.all, id: \.rawValue, content: modifierButton)
-                        }
-                        Text(modifierExplanation)
-                            .secondaryCaption()
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                Toggle(
-                    "Only while an EVE client is frontmost",
-                    isOn: $settings.hotKeysOnlyWhileClientActive)
-
-                Toggle("Show the key in each label", isOn: $settings.showsHotKeyInLabel)
-
-                FullWidthDivider()
-
-                LabeledContent("Keys") { assignments }
-            }
-            // Everything below the first toggle is moot while the keys are off — but the
-            // toggle itself has to stay live, so the group is disabled rather than the form.
-            .disabled(!settings.hotKeysEnabled)
-
-            ForEach(warnings, id: \.self) { warning in
-                Label(warning, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .clipped()
-    }
-
-    // MARK: - Pieces
-
-    private func modifierButton(_ modifier: HotKeyModifiers) -> some View {
-        Toggle(
-            modifier.symbols,
-            isOn: Binding(
-                get: { settings.hotKeyModifiers.contains(modifier) },
-                set: { isOn in
-                    if isOn {
-                        settings.hotKeyModifiers.insert(modifier)
-                    } else {
-                        settings.hotKeyModifiers.remove(modifier)
-                    }
-                })
-        )
-        .toggleStyle(.button)
-    }
-
-    private var modifierExplanation: String {
-        settings.hotKeyModifiers.isEmpty
-            ? "No modifier: the bare function key, which EVE no longer sees while the key is taken."
-            : "EVE keeps the bare function keys; only the combination above is taken."
-    }
-
-    /// What each key raises at this moment. Positions are the strip's own order, so this is
-    /// also the answer to "which frame is third".
-    @ViewBuilder private var assignments: some View {
-        if model.windows.isEmpty {
-            Text("No clients are running.")
-                .secondaryCaption()
-        } else {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(Array(model.windows.enumerated()), id: \.element.id) { slot, window in
-                    HStack(spacing: 6) {
-                        Text(
-                            HotKeyMonitor.label(
-                                forSlot: slot, modifiers: settings.hotKeyModifiers) ?? "—"
-                        )
-                        .monospaced()
-                        .foregroundStyle(
-                            HotKeyMonitor.label(forSlot: slot, modifiers: settings.hotKeyModifiers)
-                                == nil ? .secondary : .primary)
-                        Text("→")
-                            .foregroundStyle(.secondary)
-                        Text(window.characterName ?? window.displayName)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    .font(.caption)
-                }
-            }
-        }
-    }
-
-    /// Everything that can leave a key registered but silent. Each is a condition this app
-    /// cannot fix on the user's behalf, so saying so is all that is left.
-    private var warnings: [String] {
-        guard settings.hotKeysEnabled else { return [] }
-        var warnings: [String] = []
-
-        // A bare function key never reaches an application unless the keyboard is in "standard
-        // function keys" mode — otherwise F1 is brightness-down and the press is consumed long
-        // before any hot key is consulted. Read from the global domain, where the Keyboard
-        // pane writes it; absent means off, which is the factory setting.
-        if settings.hotKeyModifiers.isEmpty,
-            !UserDefaults.standard.bool(forKey: "com.apple.keyboard.fnState")
-        {
-            warnings.append(
-                "This keyboard sends F1…F12 as media keys. Turn on Keyboard → “Use F1, F2, etc. keys as standard function keys”, or hold fn."
-            )
-        }
-
-        // macOS keeps ⌃F1…⌃F8 for keyboard navigation and wins the dispatch, so control on its
-        // own is the one combination that registers and then never fires.
-        if settings.hotKeyModifiers == .control {
-            warnings.append(
-                "macOS reserves ⌃F1…⌃F8 for keyboard navigation and will keep them. Add another modifier."
-            )
-        }
-
-        if !model.unavailableHotKeySlots.isEmpty {
-            let keys = model.unavailableHotKeySlots.compactMap {
-                HotKeyMonitor.label(forSlot: $0, modifiers: settings.hotKeyModifiers)
-            }
-            warnings.append(
-                "Another application already owns \(keys.joined(separator: ", ")).")
-        }
-
-        return warnings
-    }
-}
 
 // MARK: - Styling
 
@@ -273,11 +63,6 @@ struct BoldLabelStyle: LabeledContentStyle {
     }
 }
 
-extension LabeledContentStyle where Self == BoldLabelStyle {
-    /// Not fileprivate: the tabs live in their own files and their previews want the same
-    /// styling the real pane applies.
-    static var boldLabel: Self { Self() }
-}
 
 // MARK: - Rows
 

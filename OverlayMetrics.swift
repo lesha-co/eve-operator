@@ -36,6 +36,7 @@ nonisolated enum OverlayMetrics {
 
     /// Whether the frontmost client's preview is picked out with a coloured border.
     static let defaultHighlightsActiveClient = true
+    static let defaultSkipActiveClient = false
 
     /// Whether the status item is in the menu bar.
     static let defaultShowsMenuBarIcon = true
@@ -75,6 +76,9 @@ nonisolated enum OverlayMetrics {
     /// `#ff000000` and would be invisible on a dark preview, and the other two are not worth
     /// a dial. The name is the key EVE writes inside a theme object.
     static let defaultMirroredThemeChannel = "focus"
+    
+    static let defaultActiveClientMark = ActiveClientMark.border
+
 
     // MARK: - Legal ranges for those settings
 

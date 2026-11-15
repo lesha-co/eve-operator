@@ -40,7 +40,9 @@ final class CharacterRoster {
         var id: String { name }
     }
 
-    /// Names first seen most recently last, so the list does not reshuffle under the pointer.
+    /// The user's own order, newly seen names appended. It is persisted as written and is
+    /// what a hot-key slot counts along, so a character keeps its key whether or not the
+    /// characters above it are logged in. Reordered only by `move(names:to:)`.
     private(set) var characters: [Entry] = []
 
     private let defaults: UserDefaults
@@ -96,9 +98,39 @@ final class CharacterRoster {
         }
 
         if !appeared.isEmpty {
-            defaults.set(characters.map(\.name), forKey: Key.names)
+            persistOrder()
             resolvePending()
         }
+    }
+
+    // MARK: - Order
+
+    /// Where `name` sits in the user's order, which is the hot-key slot it owns. `nil` for a
+    /// name the roster has never seen.
+    func slot(for name: String) -> Int? {
+        characters.firstIndex { $0.name == name }
+    }
+
+    /// Applies a drag of `names` onto the row at `destination`, counted against the list as
+    /// it stands before anything moves — the offset a `Table` drop hands back.
+    ///
+    /// Names the roster does not hold are dropped rather than inserted: the table accepts
+    /// plain text, so anything can land in it, and only a row from this table is a reorder.
+    func move(names: [String], to destination: Int) {
+        let sources = Set(names.compactMap(slot(for:)))
+        guard !sources.isEmpty else { return }
+
+        let moved = characters.enumerated().filter { sources.contains($0.offset) }.map(\.element)
+        var remaining = characters.enumerated().filter { !sources.contains($0.offset) }.map(
+            \.element)
+        // Every selected row above the drop point has been lifted out, so the insertion
+        // point slides up by that many.
+        let insertion = min(destination - sources.count { $0 < destination }, remaining.count)
+        remaining.insert(contentsOf: moved, at: max(insertion, 0))
+
+        guard remaining != characters else { return }
+        characters = remaining
+        persistOrder()
     }
 
     // MARK: - Editing
@@ -114,7 +146,7 @@ final class CharacterRoster {
     func forget(_ name: String) {
         characters.removeAll { $0.name == name }
         identifiers[name] = nil
-        defaults.set(characters.map(\.name), forKey: Key.names)
+        persistOrder()
     }
 
     /// Retries every unresolved name. Only ever called from a button — a failed lookup is
@@ -149,6 +181,10 @@ final class CharacterRoster {
                 for name in unresolved { self.update(name) { $0.resolution = .failed(reason) } }
             }
         }
+    }
+
+    private func persistOrder() {
+        defaults.set(characters.map(\.name), forKey: Key.names)
     }
 
     private func update(_ name: String, _ change: (inout Entry) -> Void) {

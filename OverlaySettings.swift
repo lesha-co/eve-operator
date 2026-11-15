@@ -11,6 +11,29 @@ import Foundation
 import Observation
 import SwiftUI
 
+nonisolated enum ActiveClientMark: String, CaseIterable, Identifiable {
+    case none, border, skip
+    
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+            case .none: return "Nothing"
+            case .border: return "Highlight"
+            case .skip: return "Skip"
+        }
+    }
+    
+    var description: String {
+        switch self {
+            case .none: return "Active client frame doesn't look special"
+            case .border: return "Draw a border round active frame"
+            case .skip: return "Do not draw active client"
+        }
+    }
+    
+    
+}
+
 /// Which edge of a frame the character name sits against.
 nonisolated enum LabelEdge: String, CaseIterable, Identifiable {
     case top, bottom
@@ -33,7 +56,7 @@ nonisolated enum LabelAlignment: String, CaseIterable, Identifiable {
         case .trailing: return "Right"
         }
     }
-
+    /// CLAUDE: this seems redundant?
     var horizontal: HorizontalAlignment {
         switch self {
         case .leading: return .leading
@@ -98,11 +121,6 @@ final class OverlaySettings {
         didSet { defaults.set(previewsAlwaysOnTop, forKey: Key.previewsAlwaysOnTop) }
     }
 
-    /// Whether the frontmost client's frame is picked out with a coloured border.
-    var highlightsActiveClient: Bool {
-        didSet { defaults.set(highlightsActiveClient, forKey: Key.highlightsActiveClient) }
-    }
-
     /// Whether the app keeps an icon in the menu bar — see `MenuBarController`.
     var showsMenuBarIcon: Bool {
         didSet { defaults.set(showsMenuBarIcon, forKey: Key.showsMenuBarIcon) }
@@ -162,6 +180,10 @@ final class OverlaySettings {
     var eveSettingsProfile: String {
         didSet { defaults.set(eveSettingsProfile, forKey: Key.eveSettingsProfile) }
     }
+    
+    var activeClientMark: ActiveClientMark {
+        didSet { defaults.set(activeClientMark.rawValue, forKey: Key.activeClientMark) }
+    }
 
     /// Keyed by character name — what a window title gives us, and what survives a failed
     /// ESI lookup. Values are `mirror` or `#RRGGBBAA`; an absent or unparseable entry means
@@ -175,6 +197,9 @@ final class OverlaySettings {
     var labelPlacement: Alignment {
         Alignment(horizontal: labelAlignment.horizontal, vertical: labelEdge.vertical)
     }
+    
+
+    
 
     private let defaults: UserDefaults
 
@@ -203,9 +228,6 @@ final class OverlaySettings {
         previewsAlwaysOnTop =
             defaults.object(forKey: Key.previewsAlwaysOnTop) as? Bool
             ?? OverlayMetrics.defaultPreviewsAlwaysOnTop
-        highlightsActiveClient =
-            defaults.object(forKey: Key.highlightsActiveClient) as? Bool
-            ?? OverlayMetrics.defaultHighlightsActiveClient
         showsMenuBarIcon =
             defaults.object(forKey: Key.showsMenuBarIcon) as? Bool
             ?? OverlayMetrics.defaultShowsMenuBarIcon
@@ -244,6 +266,8 @@ final class OverlaySettings {
             } ?? OverlayMetrics.defaultEVESettingsProfile
         characterLabelColors =
             defaults.dictionary(forKey: Key.characterLabelColors) as? [String: String] ?? [:]
+        activeClientMark = Self.option(
+            defaults, Key.activeClientMark, or: OverlayMetrics.defaultActiveClientMark)
     }
 
     // MARK: - Per-character colours
@@ -276,7 +300,7 @@ final class OverlaySettings {
         framesPerRow = OverlayMetrics.defaultFramesPerRow
         requiresCommandToDrag = OverlayMetrics.defaultRequiresCommandToDrag
         previewsAlwaysOnTop = OverlayMetrics.defaultPreviewsAlwaysOnTop
-        highlightsActiveClient = OverlayMetrics.defaultHighlightsActiveClient
+        activeClientMark = OverlayMetrics.defaultActiveClientMark
         showsMenuBarIcon = OverlayMetrics.defaultShowsMenuBarIcon
         labelColor = OverlayMetrics.defaultLabelColor
         labelEdge = OverlayMetrics.defaultLabelEdge
@@ -291,7 +315,7 @@ final class OverlaySettings {
         eveSettingsProfile = OverlayMetrics.defaultEVESettingsProfile
         characterLabelColors = [:]
     }
-
+    /// CLAUDE: make the whole setting object comparable so it can be compared via "==" and not do this travesty
     var isDefault: Bool {
         idleOpacity == OverlayMetrics.defaultIdleOpacity
             && hoverOpacity == OverlayMetrics.defaultHoverOpacity
@@ -299,7 +323,7 @@ final class OverlaySettings {
             && framesPerRow == OverlayMetrics.defaultFramesPerRow
             && requiresCommandToDrag == OverlayMetrics.defaultRequiresCommandToDrag
             && previewsAlwaysOnTop == OverlayMetrics.defaultPreviewsAlwaysOnTop
-            && highlightsActiveClient == OverlayMetrics.defaultHighlightsActiveClient
+            && activeClientMark == OverlayMetrics.defaultActiveClientMark
             && showsMenuBarIcon == OverlayMetrics.defaultShowsMenuBarIcon
             && labelEdge == OverlayMetrics.defaultLabelEdge
             && labelAlignment == OverlayMetrics.defaultLabelAlignment
@@ -401,7 +425,6 @@ final class OverlaySettings {
         static let framesPerRow = "overlay.framesPerRow"
         static let requiresCommandToDrag = "overlay.requiresCommandToDrag"
         static let previewsAlwaysOnTop = "overlay.previewsAlwaysOnTop"
-        static let highlightsActiveClient = "overlay.highlightsActiveClient"
         static let showsMenuBarIcon = "menubar.showsIcon"
         static let labelColor = "overlay.labelColor"
         static let labelEdge = "overlay.labelEdge"
@@ -415,5 +438,6 @@ final class OverlaySettings {
         static let eveSettingsProfile = "eve.settingsProfile"
 
         static let characterLabelColors = "labels.perCharacter"
+        static let activeClientMark = "overlay.activeClientMark"
     }
 }

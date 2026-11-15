@@ -55,7 +55,6 @@ struct LabelSettings: View {
     Form {
         LabelSettings()
     }
-    .labeledContentStyle(.boldLabel)
     .scenePadding()
     .frame(width: 460)
 }

@@ -56,12 +56,19 @@ struct OverlayStripView: View {
         .task { await model.monitor() }
     }
 
-    /// Frames wrap once a row is full, so a fleet of clients stays on screen. Slot numbers
-    /// run across the whole strip, not across a row: they are positions in `model.windows`,
-    /// which is what a hot key resolves against.
+    /// Frames wrap once a row is full, so a fleet of clients stays on screen. A frame's slot
+    /// number is its character's place in the roster, not its place in the strip, so the keys
+    /// need not read left to right — inverted once here rather than looked up per frame,
+    /// because this body is re-evaluated for every capture frame.
     private var rows: [[Slot]] {
         let perRow = max(1, settings.framesPerRow)
-        let slots = model.windows.enumerated().map { Slot(number: $0.offset, window: $0.element) }
+        let slots = model.hotKeyAssignments.keys.sorted().map {
+            Slot(number: $0, window: model.hotKeyAssignments[$0]!)
+        }.filter {
+            !(settings.activeClientMark == .skip && $0.window.isActive)
+        }
+        
+        
         return stride(from: 0, to: slots.count, by: perRow).map { start in
             Array(slots[start..<min(start + perRow, slots.count)])
         }
@@ -69,8 +76,9 @@ struct OverlayStripView: View {
 
     /// The key that raises this frame, when there is one and it is wanted in the label.
     private func hotKeyLabel(for slot: Slot) -> String? {
-        guard settings.hotKeysEnabled, settings.showsHotKeyInLabel else { return nil }
-        return HotKeyMonitor.label(forSlot: slot.number, modifiers: settings.hotKeyModifiers)
+        guard settings.hotKeysEnabled, settings.showsHotKeyInLabel, let number = slot.number
+        else { return nil }
+        return HotKeyMonitor.label(forSlot: number, modifiers: settings.hotKeyModifiers)
     }
 
     private func setHover(_ hovering: Bool, for id: CGWindowID) {
@@ -119,9 +127,10 @@ struct OverlayStripView: View {
 
 // MARK: - Slot
 
-/// A client together with its position in the strip, which is also the hot key that raises it.
+/// A client together with the hot-key slot that raises it, when it has one — a client still
+/// signing in has no character name yet, and so no place in the roster's order.
 private struct Slot: Identifiable {
-    let number: Int
+    let number: Int?
     let window: EVEWindow
 
     var id: CGWindowID { window.id }
@@ -163,7 +172,7 @@ private struct ClientFrameView: View {
 
     /// Only the frontmost client is picked out, and only while the user wants it to be.
     private var isHighlighted: Bool {
-        settings.highlightsActiveClient && window.isActive
+        settings.activeClientMark == .border && window.isActive
     }
 
     private var label: String {
@@ -182,8 +191,12 @@ private struct ClientFrameView: View {
             RoundedRectangle(cornerRadius: OverlayMetrics.cornerRadius)
                 .strokeBorder(
                     labelColor,
-                    lineWidth: isHighlighted
-                        ? OverlayMetrics.activeBorderWidth : 0
+                    lineWidth:
+                        isHighlighted
+                        ? OverlayMetrics.activeBorderWidth
+                        : isHovered
+                            ? 1
+                            : 0
                 ).opacity(labelOpacity)
 
             Text(label)
