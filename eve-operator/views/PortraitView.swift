@@ -1,42 +1,27 @@
 import AppKit
 import SwiftUI
 
+let characterID = "94662640"
+let characterName = "Valeria Bessen"
+
 struct PortraitView: View {
-
-    let characterID = "94662640"
-    let characterName = "Valeria Bessen"
-
-    @State private var isHoveringName = false
-    @State private var copied = false
-
+    
     var body: some View {
 
         let esiURL = URL(
             string:
                 "https://images.evetech.net/characters/\(characterID)/portrait?tenant=tranquility&size=128"
         )!
-        LabeledContent("Support the developer") {
+        LabeledContent("Support & Feedback") {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
 
-                    WordFlowLayout(spacing: Self.spaceWidth) {
-                        ForEach(
-                            Array(
-                                "If you find EVE Operator useful and want to support me, send ISK to"
-                                    .split(separator: " ").enumerated()), id: \.offset
-                        ) {
-                            _, word in
-                            Text(word)
-                        }
-                        characterNameButton
-
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    if copied {
-                        
-                        Label("Copied to clipboard. Thank you!", systemImage: "checkmark.circle.fill").secondaryCaption()
-                        
-                    }
+                    Text("If you find EVE Operator useful and want to support me, send ISK to **\(characterName)**. If your donation includes the words \"**eve operator**\" i will send you an eve mail whenever an update comes out.")
+                    
+                    CopyButton()
+                    
+                    Text("Oh and by the way if you have any feedback you can reach me ")
+                    
                 }
                 AsyncImage(url: esiURL) { image in
                     image
@@ -53,38 +38,32 @@ struct PortraitView: View {
 
     }
 
-    private var characterNameButton: some View {
+    
+}
 
-        Button(action: copyCharacterName) {
-            Text(characterName)
-                .bold()
-                .foregroundStyle(Color.accentColor)
-                .underline(isHoveringName)
+private struct CopyButton: View {
+    
+    @State private var isHoveringName = false
+    @State private var copied = false
+    var body: some View {
+            Button(action: copyCharacterName) {
+                Label("Copy name to the clipboard", systemImage: copied ? "checkmark.circle.fill":"document.on.document")
+            }
+            .buttonStyle(.borderedProminent)
+            .onHover { hovering in
+                if !hovering {
+                    copied = false
+                }
+            }
             
         }
-        .buttonStyle(.plain)
-        .pointerStyle(.link)
-        .onHover { hovering in
-            isHoveringName = hovering
-            if !hovering {
-                copied = false
-            }
+        
+        private func copyCharacterName() {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(characterName, forType: .string)
+            copied = true
         }
-        .help("Copy the character name to the clipboard")
-    }
-
-    /// Width of a space in the body font, so the synthesized word gaps match
-    /// the ones the text engine would have produced.
-    private static var spaceWidth: CGFloat {
-        let font = NSFont.preferredFont(forTextStyle: .body)
-        return (" " as NSString).size(withAttributes: [.font: font]).width
-    }
-
-    private func copyCharacterName() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(characterName, forType: .string)
-        copied = true
-    }
+    
 }
 
 private struct WordFlowLayout: Layout {
