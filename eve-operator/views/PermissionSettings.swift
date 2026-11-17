@@ -44,6 +44,10 @@ struct PermissionSettings: View {
                     })
                 FullWidthDivider()
                 settingsFolderRow
+                FullWidthDivider()
+                Button(action: refresh) {
+                    Text("Refresh")
+                }
 
             }
 
@@ -112,11 +116,17 @@ struct PermissionSettings: View {
         }
     }
 
-    /// The prompt only ever appears once per install, so the pane is where the switch actually
-    /// is — but asking first also registers eve-operator in that pane's list, which is the
-    /// difference between flicking a switch and having to add the app by hand.
+    /// The prompt only ever appears once per code identity, so the pane is where the switch
+    /// actually is — but asking first also registers eve-operator in that pane's list, which is
+    /// the difference between flicking a switch and having to add the app by hand.
+    ///
+    /// Only fall through to the pane when the request came back empty-handed: opening System
+    /// Settings on top of a prompt that is still up buries the prompt behind it.
     private func grant(_ request: @MainActor () -> Bool, _ settingsURL: URL) {
-        _ = request()
+        if request() {
+            refresh()
+            return
+        }
         NSWorkspace.shared.open(settingsURL)
     }
 
