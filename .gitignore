@@ -4,4 +4,7 @@ EVE Operator*/*.*
 eve-operatorTests
 *.xcworkspace
 *.xcuserdatad
-*.md
+docs/slop/*.md
+buildServer.json
+build
+dist
