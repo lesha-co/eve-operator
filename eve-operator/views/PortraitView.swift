@@ -20,7 +20,7 @@ struct PortraitView: View {
                     
                     CopyButton()
                     
-                    Text("Oh and by the way if you have any feedback you can reach me ")
+                    Text("Oh and by the way if you have any feedback you can send me an eve mail")
                     
                 }
                 AsyncImage(url: esiURL) { image in
@@ -119,5 +119,5 @@ private struct WordFlowLayout: Layout {
         PortraitView()
     }
     .scenePadding()
-    .frame(width: 460)
+    .frame(width: 550)
 }

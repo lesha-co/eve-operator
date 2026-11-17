@@ -36,10 +36,12 @@ struct StripSettings: View {
                 step: 10.0,
                 format: { "\(Int($0.rounded())) pt" })
             
-            Picker("Frames in a row", selection: $settings.framesPerRow) {
-                ForEach(OverlayMetrics.framesPerRowRange, id: \.self) { Text("\($0)").tag($0) }
+            HStack{
+                Picker("Frames in a row", selection: $settings.framesPerRow) {
+                    ForEach(OverlayMetrics.framesPerRowRange, id: \.self) { Text("\($0)").tag($0) }
+                }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
             
             Toggle("Previews always on top", isOn: $settings.previewsAlwaysOnTop)
             

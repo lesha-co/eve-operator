@@ -34,7 +34,7 @@ struct SettingsView: View {
             }
         }
         .scenePadding()
-        .frame(width: 460)
+        .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
         .background { WindowConfigurator { SettingsWindow.adopt($0) } }
 
