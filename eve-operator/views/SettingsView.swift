@@ -41,8 +41,6 @@ struct SettingsView: View {
     }
 }
 
-
-
 // MARK: - Styling
 
 /// Bolds every `LabeledContent` label in the pane, so the label column reads as the heading it
@@ -62,7 +60,6 @@ struct BoldLabelStyle: LabeledContentStyle {
         }
     }
 }
-
 
 // MARK: - Rows
 
