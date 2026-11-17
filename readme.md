@@ -24,37 +24,39 @@ I have no intention of breaking EVE Online EULA/ToS and if you have any concerns
 
 1. Previews:
 
-- Set thumbnail's opacity
-- Set thumbnail's size
-- Arrange thumbnails in multiple rows
-- Keep them on top or not
-- Highlighting active client thumbnail
-- click or ⌘-click to drag
+   - Set thumbnail's opacity
+   - Set thumbnail's size
+   - Arrange thumbnails in multiple rows
+   - Keep them on top or not
+   - Highlighting active client thumbnail
+   - click or ⌘-click to drag
 
-1. Labels (character name on thumbnail)
+![screenshot](docs/previews.heic)
 
-- Set label color
-- Set font size
-- Set position of label
+2. Labels (character name on thumbnail)
 
-1. Hotkeys
+   - Set label color
+   - Set font size
+   - Set position of label
 
-- The app tracks which characters you use and assigns F-keys to them. Here you can set which modifier keys will be used (e.g. ⌘F1, ⌘⇧F1 and so on). Keep in mind that if your Mac set to use function keys as media keys, you'll need to press <key>fn</key> key as well.
+3. Hotkeys
 
-1. Characters
+   - The app tracks which characters you use and assigns F-keys to them. Here you can set which modifier keys will be used (e.g. ⌘F1, ⌘⇧F1 and so on). Keep in mind that if your Mac set to use function keys as media keys, you'll need to press <key>fn</key> key as well.
 
-- You can rearrange characters to set the order of appearance. Characters will keep their shortcut even if they're not online.
-- You can set per-character label color to help identify the preview. You can also automatically use their EVE Online theme settings (i.e. if you have red primary color in EVE the label will be also red). Works only with custom themes at the moment but you can copy the built-in theme.
+4. Characters
 
-1. Permissions
+   - You can rearrange characters to set the order of appearance. Characters will keep their shortcut even if they're not online.
+   - You can set per-character label color to help identify the preview. You can also automatically use their EVE Online theme settings (i.e. if you have red primary color in EVE the label will be also red). Works only with custom themes at the moment but you can copy the built-in theme.
 
-- Use this tab to check that everything is working properly.
+5. Permissions
 
-1. Other
+   - Use this tab to check that everything is working properly.
 
-- Enable/disable the Menu Bar icon
-- Set path to EVE Online application (the default is`~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app`). EVE Operator uses this to identify windows belongning to EVE Online.
-- Set path to settings folder (or detect it automatically). This path is needed to read theme colors
+6. Other
+
+   - Enable/disable the Menu Bar icon
+   - Set path to EVE Online application (the default is`~/Library/Application Support/EVE Online/SharedCache/tq/EVE.app`). EVE Operator uses this to identify windows belongning to EVE Online.
+   - Set path to settings folder (or detect it automatically). This path is needed to read theme colors
 
 # Tips
 
