@@ -72,4 +72,4 @@ I have no intention of breaking EVE Online EULA/ToS and if you have any concerns
 
 - The application works best if you set all EVE Online clients to "Fixed window" and put them on the same Space. This allows for immediate change between clients without sliding animation and also hides the purple "this window is being recorded" button. "Fullscreen" mode works though.
 - For unknown reasons (likely optimisations/energy consumption), windows from other Spaces are being throttled to about 1 fps so if you're wondering about slideshow this may be the reason (OBS has the same issue)
-- Also keep in mind that sharing windows may suppress notifications. I don't know if there's a way around it
+- Also keep in mind that sharing windows may suppress notifications. Enabling **System Settings → Notifications → Allow notifications when mirroring or sharing the display** setting fixes it (but there's a catch though)
