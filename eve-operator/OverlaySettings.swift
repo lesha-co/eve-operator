@@ -13,7 +13,7 @@ import SwiftUI
 
 nonisolated enum ActiveClientMark: String, CaseIterable, Identifiable {
     case none, border, skip
-    
+
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -22,7 +22,7 @@ nonisolated enum ActiveClientMark: String, CaseIterable, Identifiable {
             case .skip: return "Skip"
         }
     }
-    
+
     var description: String {
         switch self {
             case .none: return "Active client frame doesn't look special"
@@ -30,8 +30,7 @@ nonisolated enum ActiveClientMark: String, CaseIterable, Identifiable {
             case .skip: return "Do not draw active client"
         }
     }
-    
-    
+
 }
 
 /// Which edge of a frame the character name sits against.
@@ -56,7 +55,10 @@ nonisolated enum LabelAlignment: String, CaseIterable, Identifiable {
         case .trailing: return "Right"
         }
     }
-    /// CLAUDE: this seems redundant?
+
+    /// SwiftUI's `HorizontalAlignment` is an open struct, not an enum, so it can't be
+    /// persisted or listed in a picker directly. This is the bridge back to it, mirroring
+    /// `LabelEdge.vertical`.
     var horizontal: HorizontalAlignment {
         switch self {
         case .leading: return .leading
@@ -180,7 +182,7 @@ final class OverlaySettings {
     var eveSettingsProfile: String {
         didSet { defaults.set(eveSettingsProfile, forKey: Key.eveSettingsProfile) }
     }
-    
+
     var activeClientMark: ActiveClientMark {
         didSet { defaults.set(activeClientMark.rawValue, forKey: Key.activeClientMark) }
     }
@@ -197,9 +199,6 @@ final class OverlaySettings {
     var labelPlacement: Alignment {
         Alignment(horizontal: labelAlignment.horizontal, vertical: labelEdge.vertical)
     }
-    
-
-    
 
     private let defaults: UserDefaults
 

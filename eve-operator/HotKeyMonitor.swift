@@ -97,13 +97,8 @@ final class HotKeyMonitor {
     /// `'evop'`. Hot keys are dispatched per-process, so the handler has to recognise its own.
     nonisolated fileprivate static let signature: OSType = 0x6576_6F70
 
-    /// How the key for `slot` reads to a human — "F3", or "⌃⌥F3". `nil` past the end of the
-    /// table, where there is no key to describe.
-    ///
-    /// CLAUDE: please check that we really don't need keyCodes.indices guard because it's just a label and won't get called with incorrect slot. if it's called with incorrect slot number (not existing in keyCodes.indices) then the calling code is incorrect, not this
     static func label(forSlot slot: Int, modifiers: HotKeyModifiers) -> String {
-//        guard keyCodes.indices.contains(slot) else { return nil }
-        return modifiers.symbols + "F\(slot + 1)"
+        modifiers.symbols + "F\(slot + 1)"
     }
 
     private let onActivate: (Int) -> Void
